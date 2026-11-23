@@ -110,6 +110,71 @@ main { padding: var(--space-4); max-width: 720px; margin: 0 auto; }
 .btn-primary[disabled] { opacity: .6; cursor: progress; }
 .btn-primary svg { width: 22px; height: 22px; }
 
+.card .btn-primary + input + .btn-secondary { margin-top: var(--space-3); }
+.btn-secondary {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  width: 100%; min-height: 52px; padding: 0 var(--space-4);
+  border: 2px solid var(--color-primary); border-radius: 12px; cursor: pointer;
+  background: transparent; color: var(--color-primary);
+  font: 600 17px var(--font);
+}
+.btn-secondary:active { background: var(--color-muted); }
+.btn-secondary svg { width: 22px; height: 22px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+.btn-link {
+  min-height: 44px; padding: 0 var(--space-2); border: 0; background: none; cursor: pointer;
+  color: var(--color-primary); font: 600 15px var(--font);
+}
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.summary { margin: 0; font-size: 15px; color: var(--color-muted-foreground); }
+
+.results { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+.results li { min-width: 0; }
+.result-body { flex: 1; }
+.result {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 84px;
+  padding: var(--space-2) var(--space-3); text-align: left; cursor: pointer;
+  background: var(--color-card); color: inherit; border: 1px solid var(--color-border);
+  border-left: 5px solid var(--color-border); border-radius: 12px; font: inherit;
+}
+.result img { flex: none; width: 48px; height: 68px; object-fit: cover; border-radius: 4px; background: var(--color-muted); }
+.result-body { display: flex; flex-direction: column; min-width: 0; }
+.result-title { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-sub { font-size: 14px; color: var(--color-muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 14px; font-weight: 600; }
+.result-badge svg { width: 16px; height: 16px; }
+.result-ok { border-left-color: #16A34A; }
+.result-ok .result-badge { color: #15803D; }
+.result-check { border-left-color: #EAB308; }
+.result-check .result-badge { color: #A16207; }
+.result-fail { border-left-color: var(--color-destructive); }
+.result-fail .result-badge { color: var(--color-destructive); }
+@media (prefers-color-scheme: dark) {
+  .result-ok .result-badge { color: #4ADE80; }
+  .result-check .result-badge { color: #FACC15; }
+  .result-fail .result-badge { color: #F87171; }
+}
+
+dialog {
+  width: 100%; max-width: 720px; height: 100%; max-height: 100%; margin: 0 auto; padding: 0;
+  border: 0; background: var(--color-background); color: var(--color-foreground);
+}
+dialog::backdrop { background: rgba(0,0,0,.5); }
+.dialog-head {
+  position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--space-2);
+  padding: calc(env(safe-area-inset-top) + var(--space-2)) var(--space-4) var(--space-2);
+  background: var(--color-background); border-bottom: 1px solid var(--color-border);
+}
+.dialog-head h2 { flex: 1; margin: 0; font-size: 18px; }
+.dialog-head .icon-btn { margin: 0 -10px 0 0; }
+.sheet-notes { margin: 0; padding: var(--space-3) var(--space-4) var(--space-2) calc(var(--space-4) + 20px); }
+.sheet-notes li { margin-bottom: var(--space-1); }
+.sheet-notes li.ok { color: #15803D; list-style: none; margin-left: -20px; font-weight: 600; }
+.sheet-notes li.error { color: var(--color-destructive); }
+.sheet-notes li.muted { list-style: none; margin-left: -20px; font-size: 13px; color: var(--color-muted-foreground); }
+.sheet-view { padding: 0 var(--space-2) calc(env(safe-area-inset-bottom) + var(--space-4)); }
+.sheet-view canvas { display: block; border-radius: 6px; }
+
 .status { min-height: 1.5em; margin-top: var(--space-3) !important; font-size: 15px; }
 .status.error { color: var(--color-destructive); }
 .note { font-size: 14px; color: var(--color-muted-foreground); }

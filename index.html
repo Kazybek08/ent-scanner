@@ -48,7 +48,7 @@
         <span class="tile-title" data-i18n="nav.print"></span>
         <span class="tile-hint" data-i18n="nav.print.hint"></span>
       </a>
-      <a class="tile" href="#scan" data-soon="24.11">
+      <a class="tile tile-active" href="#scan">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>
         <span class="tile-title" data-i18n="nav.scan"></span>
         <span class="tile-hint" data-i18n="nav.scan.hint"></span>
@@ -90,6 +90,30 @@
     </div>
   </section>
 
+  <!-- Сканирование -->
+  <section class="screen" data-screen="scan" hidden>
+    <div class="card">
+      <p data-i18n="scan.lead"></p>
+      <label class="btn-primary" for="scanCamera">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span data-i18n="scan.camera"></span>
+      </label>
+      <input class="visually-hidden" id="scanCamera" type="file" accept="image/*" capture="environment">
+      <label class="btn-secondary" for="scanFiles">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg>
+        <span data-i18n="scan.files"></span>
+      </label>
+      <input class="visually-hidden" id="scanFiles" type="file" accept="image/*,application/pdf" multiple>
+      <p class="status" id="scanStatus" role="status" aria-live="polite"></p>
+      <p class="note" data-i18n="scan.note.day"></p>
+    </div>
+    <div class="row-between">
+      <p class="summary" id="scanSummary" hidden></p>
+      <button class="btn-link" id="scanClear" type="button" hidden data-i18n="scan.clear"></button>
+    </div>
+    <ul class="results" id="scanResults"></ul>
+  </section>
+
   <!-- Заглушка для разделов, которые ещё не готовы -->
   <section class="screen" data-screen="soon" hidden>
     <div class="card">
@@ -98,6 +122,17 @@
     </div>
   </section>
 </main>
+
+<dialog id="sheetDialog" aria-labelledby="sheetDialogTitle">
+  <div class="dialog-head">
+    <h2 id="sheetDialogTitle"></h2>
+    <button class="icon-btn" id="sheetDialogClose" type="button" data-i18n-aria="scan.close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <ul class="sheet-notes" id="sheetNotes"></ul>
+  <div class="sheet-view"><canvas id="sheetCanvas"></canvas></div>
+</dialog>
 
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <script type="module" src="src/app.js"></script>

@@ -1,12 +1,13 @@
 import { initI18n, setLang, getLang, t } from './i18n.js';
 import { buildSheetPdf } from './sheet-pdf.js';
 import { SHEET_VERSION } from './template.js';
+import { initScan } from './scan.js';
 
 const $ = sel => document.querySelector(sel);
 
 // ---------- Навигация по экранам (через #адрес) ----------
-const SCREENS = ['print'];                 // готовые разделы
-const SOON = ['students', 'tests', 'scan', 'review', 'settings'];
+const SCREENS = ['print', 'scan'];         // готовые разделы
+const SOON = ['students', 'tests', 'review', 'settings'];
 
 function route() {
   const name = location.hash.slice(1) || 'home';
@@ -118,6 +119,7 @@ function showInstallHint() {
 
 // ---------- Старт ----------
 await initI18n();
+initScan();
 updateLangButtons();
 route();
 updateLogoNote();
