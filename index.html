@@ -33,12 +33,12 @@
   <section class="screen" data-screen="home">
     <p class="lead" data-i18n="app.subtitle"></p>
     <nav class="tiles" aria-label="Menu">
-      <a class="tile" href="#students" data-soon="25.11">
+      <a class="tile tile-active" href="#students">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="tile-title" data-i18n="nav.students"></span>
         <span class="tile-hint" data-i18n="nav.students.hint"></span>
       </a>
-      <a class="tile" href="#tests" data-soon="25.11">
+      <a class="tile tile-active" href="#tests">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>
         <span class="tile-title" data-i18n="nav.tests"></span>
         <span class="tile-hint" data-i18n="nav.tests.hint"></span>
@@ -90,9 +90,57 @@
     </div>
   </section>
 
+  <!-- Ученики -->
+  <section class="screen" data-screen="students" hidden>
+    <div class="toolbar">
+      <button class="btn-primary btn-small" id="studentAdd" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span data-i18n="students.add"></span>
+      </button>
+      <label class="btn-secondary btn-small" for="studentImport">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M12 18v-6M9 15l3-3 3 3"/></svg>
+        <span data-i18n="students.import"></span>
+      </label>
+      <input class="visually-hidden" id="studentImport" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+    </div>
+    <div class="toolbar-links">
+      <button class="btn-link" id="studentTemplate" type="button" data-i18n="students.template"></button>
+      <button class="btn-link" id="studentPrint" type="button" data-i18n="students.print"></button>
+    </div>
+    <input class="search" id="studentSearch" type="search" data-i18n-placeholder="students.search" autocomplete="off">
+    <p class="summary" id="studentCount"></p>
+    <p class="card note" id="studentEmpty" hidden data-i18n="students.empty"></p>
+    <ul class="plain-list" id="studentList"></ul>
+  </section>
+
+  <!-- Пробники и ключи -->
+  <section class="screen" data-screen="tests" hidden>
+    <div class="toolbar">
+      <button class="btn-primary btn-small" id="testAdd" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span data-i18n="tests.add"></span>
+      </button>
+      <button class="btn-secondary btn-small" id="keysTemplate" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span data-i18n="tests.template"></span>
+      </button>
+    </div>
+    <p class="note" data-i18n="tests.lead"></p>
+    <input class="visually-hidden" id="keysFile" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+    <p class="card note" id="testEmpty" hidden data-i18n="tests.empty"></p>
+    <ul class="plain-list" id="testList"></ul>
+  </section>
+
   <!-- Сканирование -->
   <section class="screen" data-screen="scan" hidden>
-    <div class="card">
+    <div class="card" id="scanNoTest" hidden>
+      <p data-i18n="scan.noTest"></p>
+      <a class="btn-primary" href="#tests" data-i18n="tests.add"></a>
+    </div>
+    <div class="card" id="scanControls">
+      <label class="field-label" for="scanTest" data-i18n="scan.test"></label>
+      <select class="select" id="scanTest"></select>
+      <p class="warn-text" id="scanKeysWarn" hidden data-i18n="scan.noKeys"></p>
       <p data-i18n="scan.lead"></p>
       <label class="btn-primary" for="scanCamera">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -105,12 +153,8 @@
       </label>
       <input class="visually-hidden" id="scanFiles" type="file" accept="image/*,application/pdf" multiple>
       <p class="status" id="scanStatus" role="status" aria-live="polite"></p>
-      <p class="note" data-i18n="scan.note.day"></p>
     </div>
-    <div class="row-between">
-      <p class="summary" id="scanSummary" hidden></p>
-      <button class="btn-link" id="scanClear" type="button" hidden data-i18n="scan.clear"></button>
-    </div>
+    <p class="summary" id="scanSummary" hidden></p>
     <ul class="results" id="scanResults"></ul>
   </section>
 
@@ -132,6 +176,19 @@
   </div>
   <ul class="sheet-notes" id="sheetNotes"></ul>
   <div class="sheet-view"><canvas id="sheetCanvas"></canvas></div>
+  <div class="sheet-actions"><button class="btn-danger" id="sheetDelete" type="button" data-i18n="scan.delete"></button></div>
+</dialog>
+
+<dialog id="formDialog" class="form-dialog" aria-labelledby="formTitle">
+  <form id="formEl" method="dialog" novalidate>
+    <h2 id="formTitle"></h2>
+    <div id="formBody"></div>
+    <div class="form-buttons">
+      <button class="btn-primary" id="formSubmit" type="submit"></button>
+      <button class="btn-secondary" id="formCancel" type="button"></button>
+      <button class="btn-danger" id="formDanger" type="button" hidden></button>
+    </div>
+  </form>
 </dialog>
 
 <script src="vendor/jspdf.umd.min.js" defer></script>

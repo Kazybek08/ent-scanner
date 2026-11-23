@@ -1,13 +1,18 @@
 import { initI18n, setLang, getLang, t } from './i18n.js';
 import { buildSheetPdf } from './sheet-pdf.js';
 import { SHEET_VERSION } from './template.js';
-import { initScan } from './scan.js';
+import { initScan, renderScan } from './scan.js';
+import { initStudents, renderStudents } from './students.js';
+import { initTests, renderTests } from './tests-screen.js';
+import { initForm } from './form.js';
+import { requestPersistence } from './db.js';
 
 const $ = sel => document.querySelector(sel);
 
 // ---------- Навигация по экранам (через #адрес) ----------
-const SCREENS = ['print', 'scan'];         // готовые разделы
-const SOON = ['students', 'tests', 'review', 'settings'];
+const SCREENS = ['print', 'scan', 'students', 'tests'];         // готовые разделы
+const SOON = ['review', 'settings'];
+const RENDER = { scan: renderScan, students: renderStudents, tests: renderTests };
 
 function route() {
   const name = location.hash.slice(1) || 'home';
@@ -21,6 +26,7 @@ function route() {
     const tile = document.querySelector(`.tile[href="#${name}"]`);
     $('#soonText').textContent = t('soon.text', { date: tile?.dataset.soon ?? '' });
   }
+  if (ready && RENDER[name]) RENDER[name]().catch(e => console.error(e));
   window.scrollTo(0, 0);
 }
 
@@ -119,7 +125,11 @@ function showInstallHint() {
 
 // ---------- Старт ----------
 await initI18n();
+initForm();
 initScan();
+initStudents();
+initTests();
+requestPersistence();
 updateLangButtons();
 route();
 updateLogoNote();

@@ -1,6 +1,6 @@
 // Service worker: хранит все файлы приложения в телефоне, чтобы оно работало без интернета.
 // При любом изменении файлов увеличивайте номер версии — так iPhone скачает обновление.
-const VERSION = 'ent-scanner-v0.2.1';
+const VERSION = 'ent-scanner-v0.3.0';
 
 const FILES = [
   './',
@@ -10,6 +10,14 @@ const FILES = [
   'src/app.js',
   'src/i18n.js',
   'src/image-input.js',
+  'src/db.js',
+  'src/excel.js',
+  'src/form.js',
+  'src/scoring.js',
+  'src/students.js',
+  'src/tests-screen.js',
+  'src/util.js',
+  'vendor/xlsx/xlsx.mjs',
   'src/omr.js',
   'src/overlay.js',
   'src/scan.js',
