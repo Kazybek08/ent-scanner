@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Просмотр PDF (для разработки)</title>
+<style>body{margin:0;background:#888}canvas{display:block;margin:0 auto;background:#fff}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script type="module">
+  import * as pdfjs from '../node_modules/pdfjs-dist/build/pdf.min.mjs';
+  pdfjs.GlobalWorkerOptions.workerSrc = '../node_modules/pdfjs-dist/build/pdf.worker.min.mjs';
+  const q = new URLSearchParams(location.search);
+  const url = q.get('f') || '../out/blank-v2.pdf';
+  const scale = Number(q.get('s') || 2);
+  const pdf = await pdfjs.getDocument({ url: new URL(url, location.href).href }).promise;
+  const page = await pdf.getPage(1);
+  const vp = page.getViewport({ scale });
+  const c = document.getElementById('c');
+  c.width = vp.width; c.height = vp.height;
+  await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+  // ?crop=x0,y0,x1,y1 (мм) — показать только часть листа, растянув по ширине окна
+  if (q.get('crop')) {
+    const [x0, y0, x1, y1] = q.get('crop').split(',').map(Number);
+    const k = vp.width / 210;
+    const out = document.createElement('canvas');
+    out.width = innerWidth; out.height = Math.round(innerWidth * (y1 - y0) / (x1 - x0));
+    out.getContext('2d').drawImage(c, x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k, 0, 0, out.width, out.height);
+    c.replaceWith(out);
+  }
+  document.title = 'ready';
+</script>
+</body>
+</html>

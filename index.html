@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F766E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ҰБТ-сканер">
+<title>ҰБТ-сканер</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="icon-btn" id="backBtn" hidden data-i18n-aria="nav.back">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <div class="brand">
+    <h1 id="screenTitle" data-i18n="app.title">ҰБТ-сканер</h1>
+  </div>
+  <div class="lang" role="group" data-i18n-aria="lang.switch">
+    <button type="button" data-lang="kk">ҚАЗ</button>
+    <button type="button" data-lang="ru">РУС</button>
+  </div>
+</header>
+
+<main id="app">
+  <!-- Главный экран: шесть разделов -->
+  <section class="screen" data-screen="home">
+    <p class="lead" data-i18n="app.subtitle"></p>
+    <nav class="tiles" aria-label="Menu">
+      <a class="tile" href="#students" data-soon="25.11">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="tile-title" data-i18n="nav.students"></span>
+        <span class="tile-hint" data-i18n="nav.students.hint"></span>
+      </a>
+      <a class="tile" href="#tests" data-soon="25.11">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg>
+        <span class="tile-title" data-i18n="nav.tests"></span>
+        <span class="tile-hint" data-i18n="nav.tests.hint"></span>
+      </a>
+      <a class="tile tile-active" href="#print">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        <span class="tile-title" data-i18n="nav.print"></span>
+        <span class="tile-hint" data-i18n="nav.print.hint"></span>
+      </a>
+      <a class="tile" href="#scan" data-soon="24.11">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>
+        <span class="tile-title" data-i18n="nav.scan"></span>
+        <span class="tile-hint" data-i18n="nav.scan.hint"></span>
+      </a>
+      <a class="tile" href="#review" data-soon="26.11">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span class="tile-title" data-i18n="nav.review"></span>
+        <span class="tile-hint" data-i18n="nav.review.hint"></span>
+      </a>
+      <a class="tile" href="#settings" data-soon="27.11">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="tile-title" data-i18n="nav.settings"></span>
+        <span class="tile-hint" data-i18n="nav.settings.hint"></span>
+      </a>
+    </nav>
+    <p class="note" id="offlineNote" hidden data-i18n="offline.ready"></p>
+    <p class="note" id="installNote" hidden data-i18n="install.hint"></p>
+  </section>
+
+  <!-- Печать бланков -->
+  <section class="screen" data-screen="print" hidden>
+    <div class="card">
+      <img class="sheet-thumb" src="icons/sheet-preview.svg" alt="" width="120" height="170">
+      <p data-i18n="print.lead"></p>
+      <button class="btn-primary" id="downloadPdf" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span data-i18n="print.download"></span>
+      </button>
+      <p class="status" id="printStatus" role="status" aria-live="polite"></p>
+      <p class="note" id="logoNote"></p>
+    </div>
+    <div class="card">
+      <h2 data-i18n="print.tips.title"></h2>
+      <ul class="tips">
+        <li data-i18n="print.tip1"></li>
+        <li data-i18n="print.tip2"></li>
+        <li data-i18n="print.tip3"></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Заглушка для разделов, которые ещё не готовы -->
+  <section class="screen" data-screen="soon" hidden>
+    <div class="card">
+      <span class="badge" data-i18n="soon.badge"></span>
+      <p id="soonText"></p>
+    </div>
+  </section>
+</main>
+
+<script src="vendor/jspdf.umd.min.js" defer></script>
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
