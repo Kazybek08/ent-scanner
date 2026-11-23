@@ -53,7 +53,7 @@
         <span class="tile-title" data-i18n="nav.scan"></span>
         <span class="tile-hint" data-i18n="nav.scan.hint"></span>
       </a>
-      <a class="tile" href="#review" data-soon="26.11">
+      <a class="tile tile-active" href="#review">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span class="tile-title" data-i18n="nav.review"></span>
         <span class="tile-hint" data-i18n="nav.review.hint"></span>
@@ -154,8 +154,34 @@
       <input class="visually-hidden" id="scanFiles" type="file" accept="image/*,application/pdf" multiple>
       <p class="status" id="scanStatus" role="status" aria-live="polite"></p>
     </div>
-    <p class="summary" id="scanSummary" hidden></p>
+    <div class="row-between">
+      <p class="summary" id="scanSummary" hidden></p>
+      <a class="btn-link" id="scanReviewLink" href="#review" hidden data-i18n="review.go"></a>
+    </div>
     <ul class="results" id="scanResults"></ul>
+  </section>
+
+  <!-- Проверка и результаты -->
+  <section class="screen" data-screen="review" hidden>
+    <div class="card" id="reviewNoTest" hidden>
+      <p data-i18n="scan.noTest"></p>
+      <a class="btn-primary" href="#tests" data-i18n="tests.add"></a>
+    </div>
+    <div id="reviewBody">
+      <label class="field-label" for="reviewTest" data-i18n="scan.test"></label>
+      <select class="select" id="reviewTest"></select>
+      <button class="btn-primary" id="reviewStart" type="button" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span data-i18n="review.start"></span>
+      </button>
+      <p class="card note ok-note" id="reviewDone" hidden data-i18n="review.allDone"></p>
+      <p class="card note" id="reviewEmpty" hidden data-i18n="review.empty"></p>
+      <div class="segmented filter" id="reviewFilter" role="radiogroup">
+        <button type="button" role="radio" data-value="check"><span data-i18n="review.needCheck"></span> <b id="reviewCountCheck"></b></button>
+        <button type="button" role="radio" data-value="all"><span data-i18n="review.all"></span> <b id="reviewCountAll"></b></button>
+      </div>
+      <ul class="results" id="reviewList"></ul>
+    </div>
   </section>
 
   <!-- Заглушка для разделов, которые ещё не готовы -->
@@ -167,16 +193,19 @@
   </section>
 </main>
 
-<dialog id="sheetDialog" aria-labelledby="sheetDialogTitle">
+<dialog id="editDialog" class="edit-dialog" aria-labelledby="editTitle">
   <div class="dialog-head">
-    <h2 id="sheetDialogTitle"></h2>
-    <button class="icon-btn" id="sheetDialogClose" type="button" data-i18n-aria="scan.close">
+    <h2 id="editTitle"></h2>
+    <span class="edit-pos" id="editPos"></span>
+    <button class="icon-btn" id="editClose" type="button" data-i18n-aria="scan.close">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
     </button>
   </div>
-  <ul class="sheet-notes" id="sheetNotes"></ul>
-  <div class="sheet-view"><canvas id="sheetCanvas"></canvas></div>
-  <div class="sheet-actions"><button class="btn-danger" id="sheetDelete" type="button" data-i18n="scan.delete"></button></div>
+  <div class="edit-body" id="editBody"></div>
+  <div class="edit-foot">
+    <button class="btn-secondary" id="editSave" type="button"></button>
+    <button class="btn-primary" id="editNext" type="button" data-i18n="edit.saveNext"></button>
+  </div>
 </dialog>
 
 <dialog id="formDialog" class="form-dialog" aria-labelledby="formTitle">

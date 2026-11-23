@@ -46,7 +46,7 @@ export function randomSheet(seed) {
 }
 
 /** Заполненный бланк → «фото» (canvas). pen: 'black' | 'blue'. */
-export async function makePhoto({ answers, id, variant, subjects }, { seed = 1, angle = 3, pen = 'black', w = 1200, h = 1600 } = {}) {
+export async function makePhoto({ answers, id, variant, subjects, faint = [] }, { seed = 1, angle = 3, pen = 'black', w = 1200, h = 1600 } = {}) {
   const R = rng(seed);
   const k = 6;
   const src = await sheetCanvas(k);
@@ -60,7 +60,15 @@ export async function makePhoto({ answers, id, variant, subjects }, { seed = 1, 
     sx.ellipse((x + (R() - 0.5) * 0.4) * k, (y + (R() - 0.5) * 0.4) * k, 1.65 * k, 1.55 * k, R() * 3, 0, Math.PI * 2);
     sx.fill();
   };
-  [...id].forEach((d, i) => { const b = STUDENT_ID.columns[i].bubbles[+d]; dot(b.x, b.y); });
+  [...id].forEach((d, i) => { if (d === '?') return; const b = STUDENT_ID.columns[i].bubbles[+d]; dot(b.x, b.y); });
+  // бледные (сомнительные) отметки: [секция, номер, буква]
+  for (const [sec, n, L] of faint) {
+    const o = ANSWER_SECTIONS.find(s => s.key === sec).questions.find(q => q.n === n).options.find(o => o.letter === L);
+    const keep = sx.fillStyle;
+    sx.fillStyle = 'rgba(110,110,120,0.45)';
+    dot(o.x, o.y);
+    sx.fillStyle = keep;
+  }
   [...variant].forEach((d, i) => { const b = VARIANT.columns[i].bubbles[+d]; dot(b.x, b.y); });
   subjects.forEach(s => dot(SUBJECT_BUBBLES[s].x, SUBJECT_BUBBLES[s].y));
   for (const sec of ANSWER_SECTIONS) for (const q of sec.questions)

@@ -5,14 +5,16 @@ import { initScan, renderScan } from './scan.js';
 import { initStudents, renderStudents } from './students.js';
 import { initTests, renderTests } from './tests-screen.js';
 import { initForm } from './form.js';
+import { initReview, renderReview } from './review.js';
+import { initEditor } from './editor.js';
 import { requestPersistence } from './db.js';
 
 const $ = sel => document.querySelector(sel);
 
 // ---------- Навигация по экранам (через #адрес) ----------
-const SCREENS = ['print', 'scan', 'students', 'tests'];         // готовые разделы
-const SOON = ['review', 'settings'];
-const RENDER = { scan: renderScan, students: renderStudents, tests: renderTests };
+const SCREENS = ['print', 'scan', 'students', 'tests', 'review'];         // готовые разделы
+const SOON = ['settings'];
+const RENDER = { scan: renderScan, students: renderStudents, tests: renderTests, review: renderReview };
 
 function route() {
   const name = location.hash.slice(1) || 'home';
@@ -129,6 +131,8 @@ initForm();
 initScan();
 initStudents();
 initTests();
+initReview();
+initEditor();
 requestPersistence();
 updateLangButtons();
 route();

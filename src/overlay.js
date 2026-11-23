@@ -4,6 +4,7 @@ import { ANSWER_SECTIONS, STUDENT_ID, VARIANT, BUBBLE_R } from './template.js';
 
 const COLORS = {
   filled: 'rgba(15,118,110,0.95)',     // распознано как закрашенное
+  edited: 'rgba(124,58,237,0.95)',     // исправлено оператором
   doubt: 'rgba(250,204,21,0.55)',      // сомнительно — жёлтая подсветка
   row: 'rgba(250,204,21,0.22)',
 };
@@ -12,9 +13,11 @@ const COLORS = {
  * @param {CanvasRenderingContext2D} ctx  холст, на котором уже нарисовано фото
  * @param {object} res    результат recognize()
  * @param {number} scale  во сколько раз холст меньше изображения, на котором шло распознавание
+ * @param {object} [eff]  итоговые значения с исправлениями (results.effective)
  */
-export function drawOverlay(ctx, res, scale = 1) {
+export function drawOverlay(ctx, res, scale = 1, eff = null) {
   if (!res.ok) return;
+  const answersOf = eff ? eff.answers : res.answers;
   const P = (x, y) => { const [px, py] = project(res.H, x, y); return [px * scale, py * scale]; };
   const mm = Math.hypot(...(([a, b], [c, d]) => [a - c, b - d])(P(100, 150), P(101, 150)));
   const r = BUBBLE_R * mm;
@@ -25,7 +28,7 @@ export function drawOverlay(ctx, res, scale = 1) {
     ctx.beginPath();
     ctx.arc(px, py, kind === 'doubt' ? r * 1.25 : r * 1.15, 0, Math.PI * 2);
     if (kind === 'doubt') { ctx.fillStyle = COLORS.doubt; ctx.fill(); }
-    else { ctx.strokeStyle = COLORS.filled; ctx.stroke(); }
+    else { ctx.strokeStyle = kind === 'edited' ? COLORS.edited : COLORS.filled; ctx.stroke(); }
   };
   const rowBand = (q) => {
     const first = q.options[0], last = q.options[q.options.length - 1];
@@ -39,12 +42,12 @@ export function drawOverlay(ctx, res, scale = 1) {
 
   for (const s of ANSWER_SECTIONS) {
     for (const q of s.questions) {
-      const a = res.answers[s.key][q.n];
+      const a = answersOf[s.key][q.n];
       if (a.status === 'check') rowBand(q);
       q.options.forEach((o, i) => {
-        const v = a.scores[i];
-        if (a.marked.includes(o.letter)) circle(o.x, o.y, 'filled');
-        if (a.weak.includes(o.letter) || (a.status === 'check' && v >= 0.15 && !a.marked.includes(o.letter))) circle(o.x, o.y, 'doubt');
+        const v = a.scores?.[i] ?? 0;
+        if (a.marked.includes(o.letter)) circle(o.x, o.y, a.edited ? 'edited' : 'filled');
+        if (!a.edited && (a.weak.includes(o.letter) || (a.status === 'check' && v >= 0.15 && !a.marked.includes(o.letter)))) circle(o.x, o.y, 'doubt');
       });
     }
   }
