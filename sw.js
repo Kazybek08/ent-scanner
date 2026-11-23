@@ -1,6 +1,6 @@
 // Service worker: хранит все файлы приложения в телефоне, чтобы оно работало без интернета.
 // При любом изменении файлов увеличивайте номер версии — так iPhone скачает обновление.
-const VERSION = 'ent-scanner-v0.2.0';
+const VERSION = 'ent-scanner-v0.2.1';
 
 const FILES = [
   './',
@@ -32,9 +32,11 @@ const FILES = [
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(VERSION);
-    await cache.addAll(FILES);
+    // cache: 'reload' — брать файлы с сервера, а не из кэша браузера (GitHub Pages держит его 10 минут),
+    // иначе в новую версию может попасть старый файл
+    await cache.addAll(FILES.map(f => new Request(f, { cache: 'reload' })));
     // логотип необязателен
-    try { await cache.add('docs/logo.png'); } catch { /* файла пока нет */ }
+    try { await cache.add(new Request('docs/logo.png', { cache: 'reload' })); } catch { /* файла пока нет */ }
     await self.skipWaiting();
   })());
 });
