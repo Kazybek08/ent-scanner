@@ -7,14 +7,22 @@ import { initTests, renderTests } from './tests-screen.js';
 import { initForm } from './form.js';
 import { initReview, renderReview } from './review.js';
 import { initEditor } from './editor.js';
-import { requestPersistence } from './db.js';
+import { requestPersistence, getSetting } from './db.js';
+import { initResults } from './results-screen.js';
+import { initSettings, renderSettings } from './settings-screen.js';
+import { initHomeBackup } from './home.js';
 
 const $ = sel => document.querySelector(sel);
 
 // ---------- Навигация по экранам (через #адрес) ----------
-const SCREENS = ['print', 'scan', 'students', 'tests', 'review'];         // готовые разделы
-const SOON = ['settings'];
-const RENDER = { scan: renderScan, students: renderStudents, tests: renderTests, review: renderReview };
+const SCREENS = ['print', 'scan', 'students', 'tests', 'review', 'settings'];         // готовые разделы
+const SOON = [];
+const RENDER = { scan: renderScan, students: renderStudents, tests: renderTests, review: renderReview, settings: renderSettings };
+// данные поменялись (настройки, восстановление копии) — перерисовать открытый раздел
+document.addEventListener('datachange', () => {
+  const name = location.hash.slice(1) || 'home';
+  if (RENDER[name]) RENDER[name]().catch(e => console.error(e));
+});
 
 function route() {
   const name = location.hash.slice(1) || 'home';
@@ -64,9 +72,12 @@ const loadFonts = () => (fontsPromise ??= Promise.all([
   fileToBase64('vendor/fonts/DejaVuSans-Bold.ttf'),
 ]).then(([regular, bold]) => ({ regular, bold })));
 
-// Логотип: пока берём файл docs/logo.png из проекта (позже — из «Настроек»).
+// Логотип: сначала из «Настроек», иначе файл docs/logo.png из проекта.
 let logoPromise;
+document.addEventListener('logochange', () => { logoPromise = null; updateLogoNote(); });
 const loadLogo = () => (logoPromise ??= (async () => {
+  const fromSettings = await getSetting('logo', null);
+  if (fromSettings?.data) return fromSettings;
   try {
     const res = await fetch('docs/logo.png');
     if (!res.ok) return null;
@@ -133,6 +144,9 @@ initStudents();
 initTests();
 initReview();
 initEditor();
+initResults();
+initSettings();
+initHomeBackup();
 requestPersistence();
 updateLangButtons();
 route();

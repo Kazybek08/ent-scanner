@@ -44,6 +44,31 @@ export const db = {
   countByIndex: (store, index, value) => run(store, 'readonly', s => s.index(index).count(value)),
 };
 
+const STORES = ['students', 'tests', 'results', 'settings'];
+
+/** Всё содержимое — для резервной копии. */
+export async function dumpAll() {
+  const out = {};
+  for (const s of STORES) out[s] = await db.all(s);
+  return out;
+}
+
+/** Заменить всё содержимое одной операцией: либо восстановится всё, либо ничего не изменится. */
+export async function replaceAll(dump) {
+  const database = await open();
+  return new Promise((resolve, reject) => {
+    const tx = database.transaction(STORES, 'readwrite');
+    for (const s of STORES) {
+      const store = tx.objectStore(s);
+      store.clear();
+      for (const v of dump[s] ?? []) store.put(v);
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
 export async function getSetting(key, fallback = null) {
   const r = await db.get('settings', key);
   return r ? r.value : fallback;

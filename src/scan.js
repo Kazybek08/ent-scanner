@@ -9,6 +9,7 @@ import { getActiveTestId } from './tests-screen.js';
 import { evaluate } from './results.js';
 import { renderResultList } from './result-list.js';
 import { openEditor } from './editor.js';
+import { getAppSettings } from './app-settings.js';
 
 let busy = false;
 let urls = [];
@@ -86,6 +87,7 @@ export async function renderScan() {
   const activeId = await getActiveTestId();
   const students = await db.all('students');
   const allResults = activeId ? await db.byIndex('results', 'testId', activeId) : [];
+  const { combos } = await getAppSettings();
   if (my !== renderToken) return;
 
   const sel = $('#scanTest');
@@ -100,7 +102,7 @@ export async function renderScan() {
   if (!test) { list.textContent = ''; $('#scanSummary').hidden = true; return; }
 
   const results = allResults.sort((a, b) => b.createdAt - a.createdAt);
-  const ctx = { test, students, results };
+  const ctx = { test, students, results, combos };
   $('#scanKeysWarn').hidden = Object.keys(test.keys ?? {}).length > 0;
 
   const counts = { ok: 0, check: 0, fail: 0 };

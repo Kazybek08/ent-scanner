@@ -25,6 +25,30 @@ export function saveBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+/**
+ * Отдать файл пользователю: на iPhone — меню «Поделиться» (Файлы, Google Диск, почта),
+ * если оно недоступно — обычное скачивание.
+ */
+export async function shareOrSave(blob, filename) {
+  const file = new File([blob], filename, { type: blob.type });
+  if (navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: filename }); return 'shared'; }
+    catch (e) { if (e.name === 'AbortError') return 'cancelled'; /* иначе — скачиваем */ }
+  }
+  saveBlob(blob, filename);
+  return 'saved';
+}
+
+let exceljsPromise;
+export const loadExcelJS = () => (exceljsPromise ??= new Promise((resolve, reject) => {
+  if (window.ExcelJS) return resolve(window.ExcelJS);
+  const s = document.createElement('script');
+  s.src = 'vendor/exceljs/exceljs.bare.min.js';
+  s.onload = () => resolve(window.ExcelJS);
+  s.onerror = () => { exceljsPromise = null; reject(new Error('ExcelJS')); };
+  document.head.append(s);
+}));
+
 let xlsxPromise;
 export const loadXLSX = () => (xlsxPromise ??= import('../vendor/xlsx/xlsx.mjs'));
 

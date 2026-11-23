@@ -58,12 +58,16 @@
         <span class="tile-title" data-i18n="nav.review"></span>
         <span class="tile-hint" data-i18n="nav.review.hint"></span>
       </a>
-      <a class="tile" href="#settings" data-soon="27.11">
+      <a class="tile tile-active" href="#settings">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span class="tile-title" data-i18n="nav.settings"></span>
         <span class="tile-hint" data-i18n="nav.settings.hint"></span>
       </a>
     </nav>
+    <div class="card backup-banner" id="homeBackup" hidden>
+      <p id="homeBackupText"></p>
+      <button class="btn-primary btn-small" id="homeBackupBtn" type="button" data-i18n="backup.save"></button>
+    </div>
     <p class="note" id="offlineNote" hidden data-i18n="offline.ready"></p>
     <p class="note" id="installNote" hidden data-i18n="install.hint"></p>
   </section>
@@ -170,6 +174,37 @@
     <div id="reviewBody">
       <label class="field-label" for="reviewTest" data-i18n="scan.test"></label>
       <select class="select" id="reviewTest"></select>
+      <div class="segmented tabs" id="reviewTabs" role="radiogroup">
+        <button type="button" role="radio" data-value="check"><span data-i18n="review.tabCheck"></span> <b class="tab-count" id="reviewTabCount"></b></button>
+        <button type="button" role="radio" data-value="results"><span data-i18n="review.tabResults"></span></button>
+      </div>
+
+      <!-- Результаты -->
+      <div id="resPanel" hidden>
+        <p class="card note" id="resEmpty" hidden data-i18n="res.empty"></p>
+        <div id="resContent">
+          <div class="stats" id="resSummary"></div>
+          <p class="row-sub" id="resAvgLine"></p>
+          <div class="toolbar">
+            <button class="btn-primary btn-small" id="resExcel" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13l4 5M12 13l-4 5"/></svg>
+              <span data-i18n="res.excel"></span>
+            </button>
+            <button class="btn-secondary btn-small" id="resBackup" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><path d="M8 16l4-4 4 4M12 12v9"/></svg>
+              <span data-i18n="backup.save"></span>
+            </button>
+          </div>
+          <p class="note" id="resBackupNote"></p>
+          <label class="field-label" for="resGroup" data-i18n="res.group"></label>
+          <select class="select" id="resGroup"></select>
+          <ul class="plain-list" id="resList"></ul>
+          <h3 class="edit-h" data-i18n="res.groupsTitle"></h3>
+          <div class="table-wrap"><table class="mini-table" id="resGroups"></table></div>
+        </div>
+      </div>
+
+      <div id="reviewCheckPanel">
       <button class="btn-primary" id="reviewStart" type="button" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         <span data-i18n="review.start"></span>
@@ -181,6 +216,62 @@
         <button type="button" role="radio" data-value="all"><span data-i18n="review.all"></span> <b id="reviewCountAll"></b></button>
       </div>
       <ul class="results" id="reviewList"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Настройки -->
+  <section class="screen" data-screen="settings" hidden>
+    <div class="card">
+      <h2 data-i18n="set.backupTitle"></h2>
+      <p class="note" data-i18n="set.backupLead"></p>
+      <p class="note" id="setBackupNote"></p>
+      <div class="toolbar">
+        <button class="btn-primary btn-small" id="setBackup" type="button"><span data-i18n="backup.save"></span></button>
+        <label class="btn-secondary btn-small" for="setRestoreFile"><span data-i18n="backup.restore"></span></label>
+      </div>
+      <input class="visually-hidden" id="setRestoreFile" type="file" accept=".json,application/json">
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="set.thrTitle"></h2>
+      <p class="note" data-i18n="set.thrLead"></p>
+      <div class="thr-grid" id="setThr"></div>
+      <div class="toolbar">
+        <button class="btn-primary btn-small" id="setThrSave" type="button" data-i18n="form.save"></button>
+        <button class="btn-secondary btn-small" id="setThrReset" type="button" data-i18n="set.thrReset"></button>
+      </div>
+      <p class="status" id="setThrMsg" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="set.combosTitle"></h2>
+      <p class="note" data-i18n="set.combosLead"></p>
+      <ul class="plain-list" id="setCombos"></ul>
+      <p class="note" id="setCombosEmpty" data-i18n="set.combosEmpty"></p>
+      <div class="combo-add">
+        <label><span class="field-label" data-i18n="set.p1"></span><select class="select" id="setComboP1"></select></label>
+        <label><span class="field-label" data-i18n="set.p2"></span><select class="select" id="setComboP2"></select></label>
+      </div>
+      <button class="btn-secondary btn-small" id="setComboAdd" type="button" data-i18n="set.comboAdd"></button>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="set.logoTitle"></h2>
+      <img class="logo-preview" id="setLogoImg" alt="" hidden>
+      <p class="note" id="setLogoNote"></p>
+      <div class="toolbar">
+        <label class="btn-secondary btn-small" for="setLogoFile"><span data-i18n="set.logoPick"></span></label>
+        <button class="btn-link" id="setLogoRemove" type="button" hidden data-i18n="set.remove"></button>
+      </div>
+      <input class="visually-hidden" id="setLogoFile" type="file" accept="image/png,image/jpeg,image/*">
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="set.storageTitle"></h2>
+      <p class="note" id="setStorage"></p>
+      <p class="note" id="setPersistNote"></p>
+      <button class="btn-link" id="setPersist" type="button" hidden data-i18n="set.persistAsk"></button>
     </div>
   </section>
 
@@ -192,6 +283,17 @@
     </div>
   </section>
 </main>
+
+<dialog id="studentResDialog" class="edit-dialog" aria-labelledby="studentResTitle">
+  <div class="dialog-head">
+    <h2 id="studentResTitle"></h2>
+    <button class="icon-btn" id="studentResClose" type="button" data-i18n-aria="scan.close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="edit-body" id="studentResBody"></div>
+  <div class="edit-foot one"><button class="btn-secondary" id="studentResOpen" type="button" data-i18n="res.openSheet"></button></div>
+</dialog>
 
 <dialog id="editDialog" class="edit-dialog" aria-labelledby="editTitle">
   <div class="dialog-head">

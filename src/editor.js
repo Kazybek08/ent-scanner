@@ -10,12 +10,13 @@ import { ANSWER_SECTIONS, STUDENT_ID, VARIANT } from './template.js';
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
 import { subjectLabel } from './tests-screen.js';
 import { isMulti } from './scoring.js';
+import { getAppSettings } from './app-settings.js';
 
 let S = null;   // состояние открытого бланка
 
 export async function loadContext(testId) {
-  const [test, students, results] = await Promise.all([db.get('tests', testId), db.all('students'), db.byIndex('results', 'testId', testId)]);
-  return { test, students, results };
+  const [test, students, results, settings] = await Promise.all([db.get('tests', testId), db.all('students'), db.byIndex('results', 'testId', testId), getAppSettings()]);
+  return { test, students, results, combos: settings.combos };
 }
 
 /**
