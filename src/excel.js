@@ -138,19 +138,34 @@ export function normalizeLang(v) {
 }
 
 /** Читает список учеников: столбцы ФИО / Группа / Язык обучения (на любом из двух языков). */
-export function parseStudentsWorkbook(XLSX, wb) {
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' });
-  let hr = -1, cName = -1, cGroup = -1, cLang = -1;
-  for (let r = 0; r < Math.min(rows.length, 10) && hr < 0; r++) {
+const INSTRUCTION_SHEET = /инструкц|нұсқаул|нускаул|пример|үлгі|help|readme/i;
+
+function findStudentsHeader(rows) {
+  for (let r = 0; r < Math.min(rows.length, 10); r++) {
     const cells = rows[r].map(norm);
-    cName = cells.findIndex(c => /^(фио|ф и о|аты жөні|аты жони|таж|имя|оқушы|ученик)/.test(c));
-    cGroup = cells.findIndex(c => /^(группа|тобы|топ|класс|сынып)/.test(c));
-    cLang = cells.findIndex(c => /^(язык|тіл|тил|оқу тілі|язык обучения)/.test(c));
-    if (cName >= 0) hr = r;
+    const cName = cells.findIndex(c => /^(фио|ф и о|аты жөні|аты жони|таж|имя|оқушы|ученик)/.test(c));
+    if (cName < 0) continue;
+    return {
+      hr: r, cName,
+      cGroup: cells.findIndex(c => /^(группа|тобы|топ|класс|сынып)/.test(c)),
+      cLang: cells.findIndex(c => /^(язык|тіл|тил|оқу тілі|язык обучения)/.test(c)),
+    };
+  }
+  return null;
+}
+
+export function parseStudentsWorkbook(XLSX, wb) {
+  // лист со столбцом «ФИО»; листы-инструкции (с примером!) пропускаем
+  let rows = null, h = null;
+  for (const name of wb.SheetNames) {
+    if (INSTRUCTION_SHEET.test(name)) continue;
+    const rs = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, blankrows: false, defval: '' });
+    const found = findStudentsHeader(rs);
+    if (found) { rows = rs; h = found; break; }
   }
   const students = [], errors = [];
-  if (hr < 0) { errors.push({ code: 'noHeader' }); return { students, errors }; }
+  if (!h) { errors.push({ code: 'noHeader' }); return { students, errors }; }
+  const { hr, cName, cGroup, cLang } = h;
   for (let r = hr + 1; r < rows.length; r++) {
     const name = String(rows[r][cName] ?? '').replace(/\s+/g, ' ').trim();
     if (!name) continue;

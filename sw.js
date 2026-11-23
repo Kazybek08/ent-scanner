@@ -1,6 +1,6 @@
 // Service worker: хранит все файлы приложения в телефоне, чтобы оно работало без интернета.
 // При любом изменении файлов увеличивайте номер версии — так iPhone скачает обновление.
-const VERSION = 'ent-scanner-v0.5.0';
+const VERSION = 'ent-scanner-v0.5.1';
 
 const FILES = [
   './',
@@ -49,6 +49,8 @@ const FILES = [
   'icons/icon-512.png',
   'icons/apple-touch-icon.png',
   'icons/sheet-preview.svg',
+  'docs/students-template.xlsx',
+  'docs/keys-template.xlsx',
 ];
 
 self.addEventListener('install', event => {

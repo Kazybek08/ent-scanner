@@ -1,8 +1,8 @@
 // Раздел «Пробники и ключи».
 import { db, uid, getSetting, setSetting } from './db.js';
 import { t, getLang } from './i18n.js';
-import { $, el, readWorkbook, saveWorkbook, loadXLSX, today, fmtDate } from './util.js';
-import { parseKeysWorkbook, keysTemplateWorkbook } from './excel.js';
+import { $, el, readWorkbook, shareOrSave, today, fmtDate } from './util.js';
+import { parseKeysWorkbook } from './excel.js';
 import { openForm } from './form.js';
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
 
@@ -25,8 +25,9 @@ export function subjectLabel(code) {
 export function initTests() {
   $('#testAdd').addEventListener('click', () => editTest(null));
   $('#keysTemplate').addEventListener('click', async () => {
-    const XLSX = await loadXLSX();
-    await saveWorkbook(keysTemplateWorkbook(XLSX, getLang()), getLang() === 'kk' ? 'кілттер-үлгі.xlsx' : 'ключи-шаблон.xlsx');
+    // готовый шаблон с инструкцией, выпадающими списками и проверкой заполнения (docs/keys-template.xlsx)
+    const blob = await (await fetch('docs/keys-template.xlsx')).blob();
+    await shareOrSave(blob, getLang() === 'kk' ? 'Кілттер-үлгі.xlsx' : 'Шаблон-ключи.xlsx');
   });
   $('#keysFile').addEventListener('change', e => importKeys(e.target));
   document.addEventListener('langchange', () => { if (!$('[data-screen=tests]').hidden) renderTests(); });

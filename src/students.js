@@ -1,8 +1,8 @@
 // Раздел «Ученики»: список, добавление, импорт из Excel, печать «ФИО — ID».
 import { db, getSetting, setSetting } from './db.js';
 import { t, getLang } from './i18n.js';
-import { $, el, saveBlob, readWorkbook, saveWorkbook, loadXLSX, loadFonts, today } from './util.js';
-import { parseStudentsWorkbook, studentsTemplateWorkbook, nextStudentId } from './excel.js';
+import { $, el, saveBlob, shareOrSave, readWorkbook, loadFonts, today } from './util.js';
+import { parseStudentsWorkbook, nextStudentId } from './excel.js';
 import { openForm, closeForm } from './form.js';
 
 let query = '';
@@ -25,8 +25,9 @@ export function initStudents() {
   $('#studentAdd').addEventListener('click', () => editStudent(null));
   $('#studentImport').addEventListener('change', e => importStudents(e.target));
   $('#studentTemplate').addEventListener('click', async () => {
-    const XLSX = await loadXLSX();
-    await saveWorkbook(studentsTemplateWorkbook(XLSX, getLang()), getLang() === 'kk' ? 'оқушылар-үлгі.xlsx' : 'ученики-шаблон.xlsx');
+    // готовый шаблон с инструкцией и выпадающим списком языка (docs/students-template.xlsx)
+    const blob = await (await fetch('docs/students-template.xlsx')).blob();
+    await shareOrSave(blob, getLang() === 'kk' ? 'Оқушылар-үлгі.xlsx' : 'Шаблон-ученики.xlsx');
   });
   $('#studentPrint').addEventListener('click', printList);
   $('#studentSearch').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); renderStudents(); });
