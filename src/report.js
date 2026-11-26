@@ -10,8 +10,10 @@ export const DEFAULT_THRESHOLDS = { total: 50, min: { history: 5, mathLit: 3, re
 export function passInfo(score, th = DEFAULT_THRESHOLDS) {
   if (!score || !score.complete) return { pass: null, fails: [] };
   const fails = [];
-  if (score.total < th.total) fails.push('total');
-  for (const p of PARTS) if ((score.parts[p].points ?? 0) < (th.min?.[p] ?? 0)) fails.push(p);
+  // «Творчество»: общий порог не применяется (его считают вместе с творческими экзаменами),
+  // проверяются только минимумы по истории и чтению
+  if (!score.creative && score.total < th.total) fails.push('total');
+  for (const p of PARTS) if (!score.parts[p].skipped && (score.parts[p].points ?? 0) < (th.min?.[p] ?? 0)) fails.push(p);
   return { pass: fails.length === 0, fails };
 }
 
@@ -51,6 +53,8 @@ export function buildReport({ test, students, results, combos = [], thresholds =
       lang: ev.student?.lang ?? '',
       variant: ev.eff.variant ?? ev.eff.variantRaw ?? '',
       profiles: ev.profiles ?? [null, null],
+      creative: ev.creative,
+      max: ev.creative ? 30 : 140,
       parts: Object.fromEntries(PARTS.map(p => [p, ev.score ? ev.score.parts[p].points : null])),
       total: ev.score ? ev.score.total : null,
       complete: !!ev.score?.complete,
@@ -61,13 +65,20 @@ export function buildReport({ test, students, results, combos = [], thresholds =
       duplicates: evs.filter(x => x.ev.eff.studentId && x.ev.eff.studentId === ev.eff.studentId).length - 1,
     };
   });
-  rows.sort((a, b) => (b.total ?? -1) - (a.total ?? -1) || collator.compare(a.name || a.id, b.name || b.id));
-  let rank = 0, prev = null;
-  rows.forEach((r, i) => { if (r.total !== prev) { rank = i + 1; prev = r.total; } r.rank = r.total === null ? null : rank; });
+  // «Творчество» (из 30) — отдельный рейтинг после обычного (из 140)
+  rows.sort((a, b) => a.creative - b.creative || (b.total ?? -1) - (a.total ?? -1) || collator.compare(a.name || a.id, b.name || b.id));
+  for (const kind of [false, true]) {
+    let rank = 0, prev = null, i = 0;
+    for (const r of rows.filter(r => r.creative === kind)) {
+      i++;
+      if (r.total !== prev) { rank = i; prev = r.total; }
+      r.rank = r.total === null ? null : rank;
+    }
+  }
 
-  // средние по группам (только полностью посчитанные бланки)
+  // средние по группам и итоги — по обычным ученикам (полностью посчитанные бланки); «Творчество» — отдельной строкой
   const groupsMap = new Map();
-  for (const r of rows.filter(r => r.complete)) {
+  for (const r of rows.filter(r => r.complete && !r.creative)) {
     const g = groupsMap.get(r.group) ?? { group: r.group, count: 0, passed: 0, sum: Object.fromEntries(PARTS.map(p => [p, 0])), sumTotal: 0 };
     g.count++; if (r.pass) g.passed++;
     for (const p of PARTS) g.sum[p] += r.parts[p];
@@ -79,8 +90,11 @@ export function buildReport({ test, students, results, combos = [], thresholds =
     group: g.group, count: g.count, passed: g.passed,
     avg: Object.fromEntries(PARTS.map(p => [p, avg(g.sum[p], g.count)])), avgTotal: avg(g.sumTotal, g.count),
   }));
-  const complete = rows.filter(r => r.complete);
+  const complete = rows.filter(r => r.complete && !r.creative);
+  const creative = rows.filter(r => r.complete && r.creative);
   const summary = {
+    creative: { count: creative.length, passed: creative.filter(r => r.pass).length,
+      avgTotal: avg(creative.reduce((s, r) => s + r.total, 0), creative.length) },
     sheets: rows.length, complete: complete.length,
     passed: complete.filter(r => r.pass).length,
     avgTotal: avg(complete.reduce((s, r) => s + r.total, 0), complete.length),
@@ -99,6 +113,7 @@ export function analyzeQuestions(rows, test) {
     const key = test?.keys?.[r.variant];
     if (!key) continue;
     for (const part of PARTS) {
+      if (r.parts[part] === null) continue;            // блок не сдаётся («Творчество») или нет ключа
       const subject = part.startsWith('profile') ? r.profiles[part === 'profile1' ? 0 : 1] : part;
       const k = part.startsWith('profile') ? key.subjects?.[subject] : key[part];
       if (!k) continue;

@@ -62,7 +62,9 @@ function draw() {
     stat(s.avgTotal ?? '—', t('res.avg')),
     stat(`${s.passed}`, t('res.passed', { total: settings.thresholds.total })),
   );
-  $('#resAvgLine').textContent = PARTS.filter(p => !p.startsWith('profile')).map(p => `${subjectName(p, lang)}: ${s.avg[p] ?? '—'}`).join(' · ');
+  $('#resAvgLine').textContent = PARTS.filter(p => !p.startsWith('profile')).map(p => `${subjectName(p, lang)}: ${s.avg[p] ?? '—'}`).join(' · ')
+    + (s.creative.count ? `
+${t('res.creativeLine', { n: s.creative.count, avg: s.creative.avgTotal ?? '—', passed: s.creative.passed })}` : '');
 
   const list = $('#resList');
   list.textContent = '';
@@ -70,17 +72,19 @@ function draw() {
     const passBadge = r.pass === true ? el('span', { class: 'pass yes', text: t('res.pass') })
       : r.pass === false ? el('span', { class: 'pass no', text: t('res.fail') })
         : el('span', { class: 'pass unknown', text: t('res.notCounted') });
-    const parts = r.total === null ? '' : [
-      ...['history', 'mathLit', 'reading'].map(p => `${SHORT[lang][p]} ${r.parts[p] ?? '—'}`),
-      ...[0, 1].map(i => `${subjectName(r.profiles[i], lang) || '—'} ${r.parts[i ? 'profile2' : 'profile1'] ?? '—'}`),
-    ].join(' · ');
+    const parts = r.total === null ? '' : r.creative
+      ? [t('res.creative'), ...['history', 'reading'].map(p => `${SHORT[lang][p]} ${r.parts[p] ?? '—'}`)].join(' · ')
+      : [
+        ...['history', 'mathLit', 'reading'].map(p => `${SHORT[lang][p]} ${r.parts[p] ?? '—'}`),
+        ...[0, 1].map(i => `${subjectName(r.profiles[i], lang) || '—'} ${r.parts[i ? 'profile2' : 'profile1'] ?? '—'}`),
+      ].join(' · ');
     list.append(el('li', {}, el('button', { type: 'button', class: 'rank-row', onclick: () => openStudent(r) },
       el('span', { class: 'rank', text: r.rank ?? '—' }),
       el('span', { class: 'row-main' },
         el('span', { class: 'row-title', text: r.name || `ID ${r.id}` }),
         el('span', { class: 'row-sub', text: [r.group, parts].filter(Boolean).join(' · ') }),
         el('span', { class: 'rank-badges' }, passBadge, r.flags ? el('span', { class: 'pass unknown', text: t('scan.check', { n: r.flags }) }) : null)),
-      el('span', { class: 'result-score' }, el('b', { text: r.total ?? '—' }), el('small', { text: r.complete ? '/140' : '/…' })))));
+      el('span', { class: 'result-score' }, el('b', { text: r.total ?? '—' }), el('small', { text: r.complete ? `/${r.max}` : '/…' })))));
   }
 
   // средние по группам
@@ -102,13 +106,14 @@ function openStudent(r) {
   $('#studentResTitle').textContent = r.name || `ID ${r.id}`;
   const body = $('#studentResBody');
   body.textContent = '';
-  body.append(el('p', { class: 'row-sub', text: `ID ${r.id} · ${r.group || '—'} · ${t('scan.variant')} ${r.variant}` }));
-  body.append(el('div', { class: 'edit-score' }, el('b', { text: r.total ?? '—' }), el('span', { text: '/ 140' })));
+  body.append(el('p', { class: 'row-sub', text: [`ID ${r.id}`, r.group || '—', `${t('scan.variant')} ${r.variant}`, r.creative ? t('res.creative') : ''].filter(Boolean).join(' · ') }));
+  body.append(el('div', { class: 'edit-score' }, el('b', { text: r.total ?? '—' }), el('span', { text: `/ ${r.max}` })));
   const th = last.settings.thresholds;
-  if (r.pass === true) body.append(el('p', { class: 'pass-line yes', text: t('res.passLine', { total: th.total }) }));
+  if (r.pass === true) body.append(el('p', { class: 'pass-line yes', text: r.creative ? t('res.passLineCreative') : t('res.passLine', { total: th.total }) }));
   else if (r.pass === false) body.append(el('p', { class: 'pass-line no', text: t('res.failLine', { what: r.fails.map(f => f === 'total' ? t('res.failTotal', { total: th.total }) : `${partName(f, r, lang)} < ${th.min[f]}`).join(', ') }) }));
   const tbl = el('table', { class: 'mini-table' });
   for (const p of PARTS) {
+    if (r.creative && !['history', 'reading'].includes(p)) continue;
     const max = p.startsWith('profile') ? 50 : p === 'history' ? 20 : 10;
     tbl.append(el('tr', {}, el('td', { text: partName(p, r, lang) }), el('td', { text: `${r.parts[p] ?? '—'} / ${max}` })));
   }

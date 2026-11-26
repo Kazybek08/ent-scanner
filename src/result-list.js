@@ -30,7 +30,7 @@ export function renderResultList(list, recs, ctx, onOpen) {
     if (rec.ok) {
       const eff = ev.eff;
       title = ev.student ? ev.student.name : `ID ${eff.studentIdRaw}`;
-      sub = `ID ${eff.studentIdRaw} · ${t('scan.variant')} ${eff.variantRaw} · ${ev.profiles ? ev.profiles.map(subjectLabel).join(' + ') : '—'}`;
+      sub = `ID ${eff.studentIdRaw} · ${t('scan.variant')} ${eff.variantRaw} · ${ev.creative ? t('res.creative') : ev.profiles ? ev.profiles.map(subjectLabel).join(' + ') : '—'}`;
       badge.append(ev.flags.length ? t('scan.check', { n: ev.flags.length }) : eff.edited ? t('edit.checkedManually') : t('scan.ok'));
     } else {
       title = rec.label;
@@ -38,7 +38,7 @@ export function renderResultList(list, recs, ctx, onOpen) {
       badge.append(t('scan.fail'));
     }
     const score = ev.score
-      ? el('span', { class: 'result-score' }, el('b', { text: String(ev.score.total) }), el('small', { text: ev.score.complete ? '/140' : '/…' }))
+      ? el('span', { class: 'result-score' }, el('b', { text: String(ev.score.total) }), el('small', { text: ev.score.complete ? `/${ev.score.fullMax}` : '/…' }))
       : null;
     list.append(el('li', {},
       el('button', { type: 'button', class: `result result-${ev.state}`, onclick: () => onOpen(rec.id) },

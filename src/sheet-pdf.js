@@ -3,7 +3,7 @@
 // Работает и в браузере, и в Node (для проверки): jsPDF и шрифты передаются снаружи.
 
 import {
-  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECTS_AREA, SUBJECT_ROWS,
+  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECTS_AREA, SUBJECT_ROWS, CREATIVE_BUBBLE,
   INSTRUCTION_BOX, ANSWER_HEADERS, ANSWER_SECTIONS, VERSION_CODE, SHEET_VERSION, LOWER_PARTS, LOWER_BAND, ROW_PITCH,
 } from './template.js';
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
@@ -22,11 +22,13 @@ export const SHEET_TEXT = {
   sign: 'Қолы / Подпись',
   idKk: 'Оқушы ID', idRu: 'ID ученика',
   varKk: 'Нұсқа', varRu: 'Вариант',
-  subjKk: 'Бейіндік пәндер: 1-ші пәнге «1», 2-ші пәнге «2» бояңыз',
-  subjRu: 'Профильные предметы: у первого закрасьте «1», у второго — «2»',
+  subjKk: 'Бейіндік пәндер: «1» — бірінші, «2» — екінші',
+  subjRu: 'Профильные предметы: «1» — первый, «2» — второй',
   instrTitle: 'Нұсқаулық / Инструкция',
   instrKk: 'Дөңгелекті қара немесе көк қаламмен толық бояңыз. Бір сұраққа — бір жауап. Бейіндік пән: 31–35 сәйкестендіру — 1) және 2) жолдарының әрқайсысында бір дөңгелек; 36–40 — бір, екі немесе үш жауап. Түзетуге болмайды: қателессеңіз, жаңа бланк сұраңыз.',
   instrRu: 'Закрашивайте кружок полностью чёрной или синей ручкой. Один ответ на вопрос. Профильный предмет: 31–35 сопоставление — в строке 1) и в строке 2) по одному кружку; 36–40 — один, два или три ответа. Исправлять нельзя: при ошибке попросите новый бланк.',
+  creative: 'Шығармашылық / Творчество',
+  creativeHint: 'тек тарих + оқу / только история + чтение',
   partMatch: '31–35 · Сәйкестендіру / Сопоставление',
   partMulti: '36–40 · 1–3 жауап / ответа',
   right: 'Дұрыс / Правильно:',
@@ -109,6 +111,13 @@ export function buildSheetPdf({ jsPDF, fonts, logo, subjects = DEFAULT_SUBJECTS 
     if (doc.getTextWidth(label) > room) doc.setFontSize(6.8 * room / doc.getTextWidth(label));
     doc.text(label, r.labelX, r.y, { baseline: 'middle' });
   }
+
+  // «Творчество»: вместо профильных предметов
+  bubble(doc, CREATIVE_BUBBLE.x, CREATIVE_BUBBLE.y, '');
+  font(6.5, 'bold');
+  doc.text(SHEET_TEXT.creative, CREATIVE_BUBBLE.labelX, CREATIVE_BUBBLE.y, { baseline: 'middle' });
+  font(5, 'normal', 90);
+  doc.text(SHEET_TEXT.creativeHint, CREATIVE_BUBBLE.x - BUBBLE_R, CREATIVE_BUBBLE.hintY, { baseline: 'middle' });
 
   // --- Инструкция ---
   drawInstruction(doc, font);

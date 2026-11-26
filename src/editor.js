@@ -147,6 +147,8 @@ function flagTitle(f) {
     case 'subjects':
       if (f.reason === 'weak') return t('flag.subjects.weak');
       if (f.reason === 'same') return t('flag.subjects.same');
+      if (f.reason === 'creativeMix') return t('flag.subjects.creativeMix');
+      if (f.reason === 'creativeWeak') return t('flag.subjects.creativeWeak');
       if (f.reason === 'slots') return t('flag.subjects.slots', { p1: f.p1, p2: f.p2 });
       return t('flag.subjects', { count: f.count });
     case 'unknownStudent': return t('flag.unknownStudent', { id: f.id });
@@ -177,9 +179,9 @@ function render() {
   body.append(el('section', { class: 'edit-summary' },
     el('div', { class: 'edit-score' },
       el('b', { text: ev.score ? String(ev.score.total) : '—' }),
-      el('span', { text: ev.score ? `/ 140${ev.score.complete ? '' : ' · ' + t('scan.incomplete')}` : t('edit.noScore') })),
-    el('div', { class: 'row-sub', text: `ID ${eff.studentIdRaw ?? '—'} · ${t('scan.variant')} ${eff.variantRaw ?? '—'} · ${profiles ? profiles.map(subjectLabel).join(' + ') : '—'}` }),
-    ev.score ? el('div', { class: 'row-sub', text: ['history', 'mathLit', 'reading', 'profile1', 'profile2'].map(k => `${k.startsWith('profile') && profiles ? subjectLabel(profiles[k === 'profile1' ? 0 : 1]) : subjectLabel(k)} ${ev.score.parts[k].points ?? '—'}`).join(' · ') }) : null,
+      el('span', { text: ev.score ? `/ ${ev.score.fullMax}${ev.score.complete ? '' : ' · ' + t('scan.incomplete')}` : t('edit.noScore') })),
+    el('div', { class: 'row-sub', text: `ID ${eff.studentIdRaw ?? '—'} · ${t('scan.variant')} ${eff.variantRaw ?? '—'} · ${ev.creative ? t('res.creative') : profiles ? profiles.map(subjectLabel).join(' + ') : '—'}` }),
+    ev.score ? el('div', { class: 'row-sub', text: ['history', 'mathLit', 'reading', 'profile1', 'profile2'].filter(k => !ev.score.parts[k].skipped).map(k => `${k.startsWith('profile') && profiles ? subjectLabel(profiles[k === 'profile1' ? 0 : 1]) : subjectLabel(k)} ${ev.score.parts[k].points ?? '—'}`).join(' · ') }) : null,
     el('p', { class: `edit-state ${ev.flags.length ? 'warn' : 'ok'}`, text: ev.flags.length ? t('edit.left', { n: ev.flags.length }) : t('edit.allChecked') }),
     eff.edited ? el('p', { class: 'row-sub edited-note', text: t('edit.editedNote') }) : null,
   ));
@@ -250,21 +252,29 @@ function render() {
   }
   // предметы
   const subjFlag = ev.flags.find(f => f.kind === 'subjects') || recFlags.find(f => f.kind === 'subjects');
-  if (subjFlag || S.draft.subjects !== undefined) {
+  if (subjFlag || S.draft.subjects !== undefined || S.draft.creative !== undefined) {
     // порядок нажатия = порядок профилей: первый выбранный — «Профиль 1», второй — «Профиль 2»
-    const picked = S.subjPick ?? [...(ev.profiles ?? eff.subjects ?? [])];
-    const ok = picked.length === 2;
-    const pick = p => { S.subjPick = p; if (p.length === 2) { S.draft.subjects = p; S.dirty = true; } render(); };
-    cards.append(el('div', { class: `fix-card${S.draft.subjects !== undefined && !ev.flags.some(f => f.kind === 'subjects') ? ' done' : ''}` },
+    const picked = eff.creative ? [] : S.subjPick ?? [...(ev.profiles ?? eff.subjects ?? [])];
+    const ok = picked.length === 2 || eff.creative;
+    const pick = p => {
+      S.subjPick = p;
+      if (eff.creative) { S.draft.creative = false; S.draft.subjects = p; S.dirty = true; }
+      if (p.length === 2) { S.draft.subjects = p; S.draft.creative = false; S.dirty = true; }
+      render();
+    };
+    const setCreative = () => { S.draft.creative = !eff.creative; if (S.draft.creative) { S.draft.subjects = []; S.subjPick = []; } S.dirty = true; render(); };
+    const edited = S.draft.subjects !== undefined || S.draft.creative !== undefined;
+    cards.append(el('div', { class: `fix-card${edited && ok && !ev.flags.some(f => f.kind === 'subjects') ? ' done' : ''}` },
       el('div', { class: 'fix-title', text: t('edit.subjectsTitle') }),
-      el('div', { class: 'fix-sub', text: ok ? (S.draft.subjects !== undefined ? t('edit.fixed') : subjFlag ? flagTitle(subjFlag) : t('edit.fixed')) : t('edit.pickTwo') }),
+      el('div', { class: 'fix-sub', text: ok ? (edited ? t('edit.fixed') : subjFlag ? flagTitle(subjFlag) : t('edit.fixed')) : t('edit.pickTwo') }),
       crop('subj', { x0: 64, y0: 51.5, x1: 193, y1: 79 }, 5),
       el('div', { class: 'chips' }, DEFAULT_SUBJECTS.map(s => {
         const i = picked.indexOf(s.code);
         return el('button', { type: 'button', class: 'chip', 'aria-pressed': String(i >= 0), text: i >= 0 ? `${i + 1} · ${s[getLang()]}` : s[getLang()],
           onclick: () => { const p = [...picked]; if (i >= 0) p.splice(i, 1); else if (p.length < 2) p.push(s.code); else return; pick(p); } });
-      })),
-      ok ? el('div', { class: 'fix-actions' },
+      }), el('button', { type: 'button', class: 'chip', 'aria-pressed': String(eff.creative), text: t('res.creative'), onclick: setCreative })),
+      eff.creative ? el('div', { class: 'fix-sub', text: t('edit.creativeHint') }) : null,
+      ok && !eff.creative ? el('div', { class: 'fix-actions' },
         el('div', { class: 'fix-sub', text: t('edit.profileOrder', { p1: subjectLabel(picked[0]), p2: subjectLabel(picked[1]) }) }),
         el('button', { type: 'button', class: 'btn-link', text: t('edit.swapProfiles'), onclick: () => pick([picked[1], picked[0]]) })) : null,
     ));

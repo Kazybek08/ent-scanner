@@ -4,7 +4,7 @@
 // Работает и в браузере, и в Node (для автотестов).
 
 import {
-  MARKERS, BUBBLE_R, STUDENT_ID, VARIANT, SUBJECT_ROWS, SUBJECT_BUBBLES_V3, ANSWER_SECTIONS, VERSION_CODE, READABLE_VERSIONS,
+  MARKERS, BUBBLE_R, STUDENT_ID, VARIANT, SUBJECT_ROWS, SUBJECT_BUBBLES_V3, CREATIVE_BUBBLE, ANSWER_SECTIONS, VERSION_CODE, READABLE_VERSIONS,
 } from './template.js';
 import { DEFAULT_SUBJECTS } from './subjects.js';
 
@@ -372,7 +372,14 @@ export function recognize(img, { subjects = DEFAULT_SUBJECTS } = {}) {
   const variant = digitsFrom(VARIANT.columns, score, 'variant', flags, marks);
 
   const subj = best.version >= 4 ? readSubjects(score, subjects, marks) : readSubjectsV3(score, subjects, marks);
-  if (subj.flag) flags.push(subj.flag);
+  // «Творчество»: только история и грамотность чтения, профильные предметы не отмечаются
+  const cc = classify(score(CREATIVE_BUBBLE));
+  if (cc !== 'empty') marks.push({ x: CREATIVE_BUBBLE.x, y: CREATIVE_BUBBLE.y, c: cc });
+  const creative = cc === 'filled';
+  if (cc === 'doubtful') flags.push({ kind: 'subjects', reason: 'creativeWeak', count: subj.codes.length });
+  else if (creative && subj.codes.length) flags.push({ kind: 'subjects', reason: 'creativeMix', count: subj.codes.length });
+  else if (creative) { /* только творчество — предметы не нужны */ }
+  else if (subj.flag) flags.push(subj.flag);
   const chosen = subj.codes;
 
   const answers = {};
@@ -415,7 +422,8 @@ export function recognize(img, { subjects = DEFAULT_SUBJECTS } = {}) {
     studentId: id.ok ? id.value : null, studentIdRaw: id.value,
     variant: variant.ok ? variant.value : null, variantRaw: variant.value,
     subjects: chosen,
-    subjectsOrdered: subj.ordered,        // true — порядок [профиль 1, профиль 2] взят с бланка (v4)
+    subjectsOrdered: subj.ordered,
+    creative,                             // отмечено «Творчество»
     sheetVersion: best.version,
     answers, flags, warnings, marks,
     base: +base.toFixed(3), pxPerMm: +corners.pxPerMm.toFixed(2),

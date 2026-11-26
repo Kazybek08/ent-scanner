@@ -102,3 +102,15 @@ test('порядок профилей: по комбинациям из наст
   assert.deepEqual(orderProfiles(['chemistry', 'biology'], [['biology', 'chemistry']]), ['biology', 'chemistry']);
   assert.equal(orderProfiles(['math']), null);
 });
+
+test('«Творчество»: только история и чтение, максимум 30, без профилей балл полный', () => {
+  const r = scoreSheet({ answers: perfectAnswers(), profiles: null, key: fullKey(), creative: true });
+  assert.equal(r.total, 30);
+  assert.equal(r.max, 30);
+  assert.equal(r.fullMax, 30);
+  assert.equal(r.complete, true, 'нет профилей — это не «неполный» бланк');
+  assert.deepEqual(r.missing, []);
+  assert.equal(r.parts.mathLit.points, null);
+  assert.equal(r.parts.mathLit.skipped, true);
+  assert.equal(r.parts.profile1.skipped, true);
+});

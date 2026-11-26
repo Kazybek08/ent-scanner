@@ -1,6 +1,6 @@
 // Генератор искусственных «фото» заполненного бланка для автотестов распознавания.
 import {
-  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECT_BUBBLES, SUBJECT_BUBBLES_V3, SUBJECT_ROWS, ANSWER_SECTIONS, VERSION_CODE, LETTERS, optionsForAnswer, optionCode,
+  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECT_BUBBLES, SUBJECT_BUBBLES_V3, SUBJECT_ROWS, CREATIVE_BUBBLE, ANSWER_SECTIONS, VERSION_CODE, LETTERS, optionsForAnswer, optionCode,
 } from '../src/template.js';
 import { homography, project } from '../src/omr.js';
 
@@ -46,7 +46,7 @@ function drawPage(k, marks, version = null) {
 
   const all = [
     ...STUDENT_ID.columns.flatMap(c => c.bubbles), ...VARIANT.columns.flatMap(c => c.bubbles),
-    ...(version === 3 ? SUBJECT_BUBBLES_V3 : SUBJECT_BUBBLES), ...ANSWER_SECTIONS.flatMap(s => s.questions.flatMap(q => q.options)),
+    ...(version === 3 ? SUBJECT_BUBBLES_V3 : [...SUBJECT_BUBBLES, CREATIVE_BUBBLE]), ...ANSWER_SECTIONS.flatMap(s => s.questions.flatMap(q => q.options)),
   ];
   for (const b of all) {
     ring(b.x, b.y);
@@ -128,10 +128,11 @@ export function synthPhoto({ marks, seed = 1, orient = 'portrait', camW = 1200, 
 // extra: дополнительные кружки [секция, №, код] (например, второй кружок в строке сопоставления).
 // subjects: [индекс профиля 1, индекс профиля 2] — кружки «1» и «2»; subjectMarks — свои отметки [индекс, слот];
 // sheet: 3 — старый бланк (один кружок на предмет).
-export function buildMarks({ id = '0001', variant = '01', subjects = [0, 1], subjectMarks = null, answers = {}, style = {}, extra = [], sheet = 4 }) {
+export function buildMarks({ id = '0001', variant = '01', subjects = [0, 1], subjectMarks = null, creative = false, answers = {}, style = {}, extra = [], sheet = 4 }) {
   const marks = [];
   [...id].forEach((d, i) => { if (d === '?') return; const b = STUDENT_ID.columns[i].bubbles[+d]; marks.push({ x: b.x, y: b.y, type: 'full' }); });
   [...variant].forEach((d, i) => { const b = VARIANT.columns[i].bubbles[+d]; marks.push({ x: b.x, y: b.y, type: 'full' }); });
+  if (creative) marks.push({ x: CREATIVE_BUBBLE.x, y: CREATIVE_BUBBLE.y, type: creative === true ? 'full' : creative });
   if (sheet === 3) for (const s of subjects) { const b = SUBJECT_BUBBLES_V3[s]; marks.push({ x: b.x, y: b.y, type: 'full' }); }
   else for (const [s, slot] of subjectMarks ?? subjects.map((s, i) => [s, i + 1])) {
     const b = SUBJECT_ROWS[s].options[slot - 1]; marks.push({ x: b.x, y: b.y, type: 'full' });

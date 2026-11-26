@@ -61,6 +61,10 @@ export const SUBJECT_ROWS = DEFAULT_SUBJECTS.map((s, i) => {
   };
 });
 export const SUBJECT_BUBBLES = SUBJECT_ROWS.flatMap(r => r.options);
+// «Шығармашылық / Творчество»: ученик творческой специальности пишет только историю Казахстана
+// и грамотность чтения, профильные предметы не отмечает. Кружок справа от заголовка предметов —
+// на уже напечатанных бланках v3/v4 это место пустое, поэтому версия бланка не меняется.
+export const CREATIVE_BUBBLE = { x: 150, y: 47.3, labelX: 150 + BUBBLE_R + 1.2, hintY: 51 };
 // v3 (для чтения уже напечатанных бланков): один кружок на предмет
 export const SUBJECT_BUBBLES_V3 = DEFAULT_SUBJECTS.map((s, i) => ({
   index: i, code: s.code,
@@ -185,6 +189,7 @@ export function allBubbles() {
   STUDENT_ID.columns.forEach((c, i) => c.bubbles.forEach(b => list.push({ group: `id${i}`, ...b })));
   VARIANT.columns.forEach((c, i) => c.bubbles.forEach(b => list.push({ group: `var${i}`, ...b })));
   SUBJECT_BUBBLES.forEach(b => list.push({ group: `subject${b.slot}`, ...b }));
+  list.push({ group: 'creative', x: CREATIVE_BUBBLE.x, y: CREATIVE_BUBBLE.y });
   ANSWER_SECTIONS.forEach(s => s.questions.forEach(q =>
     q.options.forEach(o => list.push({ group: `${s.key}:${q.n}`, ...o }))));
   return list;

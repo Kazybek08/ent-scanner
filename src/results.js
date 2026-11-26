@@ -23,7 +23,7 @@ export function effective(rec) {
     if (f.kind === 'answer') return e.answers?.[f.section]?.[f.n] === undefined;
     if (f.kind === 'id') return e.studentId === undefined;
     if (f.kind === 'variant') return e.variant === undefined;
-    if (f.kind === 'subjects') return e.subjects === undefined;
+    if (f.kind === 'subjects') return e.subjects === undefined && e.creative === undefined;
     return true;
   });
   return {
@@ -32,6 +32,8 @@ export function effective(rec) {
     variant: e.variant !== undefined ? e.variant : rec.variant,
     variantRaw: e.variant !== undefined ? e.variant : rec.variantRaw,
     subjects: e.subjects !== undefined ? e.subjects : rec.subjects,
+    // «Творчество»: только история Казахстана и грамотность чтения
+    creative: e.creative !== undefined ? !!e.creative : !!rec.creative,
     // порядок [профиль 1, профиль 2] известен: с бланка v4 или выбран оператором в редакторе
     subjectsOrdered: e.subjects !== undefined ? e.subjectsOrdered !== false : !!rec.subjectsOrdered,
     answers, flags,
@@ -45,7 +47,7 @@ export function effective(rec) {
  * @param {object} ctx        { test, students, results } — пробник, ученики, все бланки пробника
  */
 export function evaluate(rec, { test, students, results, combos = [] }) {
-  const out = { state: 'fail', flags: [], score: null, student: null, profiles: null, eff: null };
+  const out = { state: 'fail', flags: [], score: null, student: null, profiles: null, creative: false, eff: null };
   if (!rec.ok) return out;
   const eff = out.eff = effective(rec);
   out.flags = [...eff.flags];
@@ -55,14 +57,15 @@ export function evaluate(rec, { test, students, results, combos = [] }) {
     const others = results.filter(r => r.id !== rec.id && r.ok && effective(r).studentId === eff.studentId);
     if (others.length) out.flags.push({ kind: 'duplicate', id: eff.studentId, others: others.map(r => r.id) });
   }
-  out.profiles = eff.subjects?.length !== 2 ? null
+  out.creative = eff.creative;
+  out.profiles = eff.creative || eff.subjects?.length !== 2 ? null
     : eff.subjectsOrdered ? [...eff.subjects] : orderProfiles(eff.subjects, combos, DEFAULT_SUBJECTS);
   const key = eff.variant ? test?.keys?.[eff.variant] : null;
   if (eff.variant && !key && Object.keys(test?.keys ?? {}).length) out.flags.push({ kind: 'noKeyVariant', variant: eff.variant });
   if (key) {
     const answers = Object.fromEntries(Object.entries(eff.answers).map(([s, qs]) =>
       [s, Object.fromEntries(Object.entries(qs).map(([n, a]) => [n, a.marked]))]));
-    out.score = scoreSheet({ answers, profiles: out.profiles, key });
+    out.score = scoreSheet({ answers, profiles: out.profiles, key, creative: eff.creative });
     for (const m of out.score.missing) if (m.includes(':')) out.flags.push({ kind: 'noKeySubject', subject: m.split(':')[1] });
   }
   out.state = out.flags.length ? 'check' : 'ok';

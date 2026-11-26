@@ -61,16 +61,20 @@ export function orderProfiles(codes, combos = [], subjects = DEFAULT_SUBJECTS) {
  * @param {string[]} p.profiles [код профиля 1, код профиля 2]
  * @param {object} p.key       ключ варианта: { history: {1: {a:'C', topic}}, ..., subjects: { math: {1: {a, topic}} } }
  */
-export function scoreSheet({ answers, profiles, key }) {
+export function scoreSheet({ answers, profiles, key, creative = false }) {
   const parts = {};
   const missing = [];
+  // «Творчество» — только история Казахстана и грамотность чтения (максимум 30); остальные блоки не сдаются
   const blocks = [
     ['history', key?.history, 20],
-    ['mathLit', key?.mathLit, 10],
+    ...(creative ? [] : [['mathLit', key?.mathLit, 10]]),
     ['reading', key?.reading, 10],
-    ['profile1', profiles ? key?.subjects?.[profiles[0]] : null, 40],
-    ['profile2', profiles ? key?.subjects?.[profiles[1]] : null, 40],
+    ...(creative ? [] : [
+      ['profile1', profiles ? key?.subjects?.[profiles[0]] : null, 40],
+      ['profile2', profiles ? key?.subjects?.[profiles[1]] : null, 40],
+    ]),
   ];
+  if (creative) for (const s of ['mathLit', 'profile1', 'profile2']) parts[s] = { points: null, max: 0, correct: 0, wrong: [], subject: null, skipped: true };
   let total = 0, max = 0, complete = true;
   for (const [section, k, count] of blocks) {
     const part = { points: 0, max: 0, correct: 0, wrong: [], subject: null };
@@ -95,5 +99,5 @@ export function scoreSheet({ answers, profiles, key }) {
     max += part.max;
     parts[section] = part;
   }
-  return { parts, total, max, complete, missing };
+  return { parts, total, max, complete, missing, creative, fullMax: creative ? 30 : 140 };
 }

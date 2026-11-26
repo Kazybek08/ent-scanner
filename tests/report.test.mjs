@@ -104,3 +104,20 @@ test('Excel: 4 листа, ошибки красным, пустые жёлты�
     assert.equal(r0001.getCell(6).fill, undefined, 'верный ответ без заливки');
   }
 });
+
+test('«Творчество»: отдельный рейтинг из 30, без общего порога, не входит в средние', () => {
+  const k = key();
+  const test1 = { id: 't1', name: 'Ноябрь', date: '2026-11-28', keys: { '01': k } };
+  const cr = (id, sid, wrong) => ({ ...sheet(id, sid, k, { wrong }), subjects: [], creative: true });
+  const results = [sheet('a', '0001', k, { wrong: 2 }), cr('b', '0002', 0), cr('c', '0003', 18)];
+  const r = buildReport({ test: test1, students, results });
+  assert.deepEqual(r.rows.map(x => [x.id, x.total, x.rank, x.creative, x.max]),
+    [['0001', 138, 1, false, 140], ['0002', 30, 1, true, 30], ['0003', 12, 2, true, 30]]);
+  assert.equal(r.rows[1].pass, true, 'общий порог 50 к «Творчеству» не применяется');
+  assert.equal(r.rows[2].pass, false, 'история 2 < минимума 5');
+  assert.deepEqual(r.rows[2].fails, ['history']);
+  assert.equal(r.summary.complete, 1);
+  assert.deepEqual(r.summary.creative, { count: 2, passed: 1, avgTotal: 21 });
+  assert.deepEqual(r.groups.map(g => [g.group, g.count]), [['11А', 1]]);
+  assert.ok(!r.questions.some(q => q.part === 'mathLit' && q.answered > 1), 'математическая грамотность творческих не считается');
+});

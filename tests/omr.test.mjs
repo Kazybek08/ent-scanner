@@ -104,6 +104,21 @@ test('профили: неясные отметки «1»/«2» подсвечи
   });
 });
 
+test('«Творчество»: без профильных предметов — без подсветки; вместе с предметами — подсветка', () => {
+  const answers = { history: { 1: 'A' }, reading: { 2: 'B' } };
+  const only = recognize(synthPhoto({ marks: buildMarks({ creative: true, subjectMarks: [], answers }), seed: 30 }));
+  assert.equal(only.creative, true);
+  assert.deepEqual(only.subjects, []);
+  assert.equal(only.flags.length, 0, JSON.stringify(only.flags));
+  const mix = recognize(synthPhoto({ marks: buildMarks({ creative: true, answers }), seed: 31 }));
+  assert.equal(mix.creative, true);
+  assert.ok(mix.flags.some(f => f.kind === 'subjects' && f.reason === 'creativeMix'));
+  const weak = recognize(synthPhoto({ marks: buildMarks({ creative: 'light', subjectMarks: [], answers }), seed: 32 }));
+  assert.ok(weak.flags.some(f => f.kind === 'subjects' && f.reason === 'creativeWeak'), JSON.stringify(weak.flags));
+  const none = recognize(synthPhoto({ marks: buildMarks({ answers }), seed: 33 }));
+  assert.equal(none.creative, false, 'обычный бланк — не творчество');
+});
+
 test('старый бланк v2 не читается — понятная ошибка', () => {
   const res = recognize(synthPhoto({ marks: buildMarks({}), seed: 13, version: 2 }));
   assert.equal(res.ok, false);

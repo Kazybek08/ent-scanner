@@ -11,6 +11,7 @@ const L = {
     n: '№', correctPct: 'Дұрыс, %', avgPoints: 'Орташа балл', commonWrong: 'Жиі қате жауап', topic: 'Тақырып', top10: 'Ең қиын 10',
     count: 'Оқушылар', passed: 'Шекті балдан өтті', avg: 'Орташа', change: 'Өзгеріс', title: 'Сынақ ҰБТ нәтижелері',
     legend: 'Қызыл — қате жауап, сары — жауап жоқ.', noName: '(тізімде жоқ)',
+    creative: 'Шығармашылық (тарих + оқу, 30-дан)',
   },
   ru: {
     summary: 'Итоги', answers: 'Ответы', analysis: 'Анализ вопросов', dynamics: 'Динамика', groups: 'Группы',
@@ -20,6 +21,7 @@ const L = {
     n: '№', correctPct: 'Верно, %', avgPoints: 'Средний балл', commonWrong: 'Частый неверный ответ', topic: 'Тема', top10: 'Топ-10 трудных',
     count: 'Учеников', passed: 'Прошли порог', avg: 'Среднее', change: 'Изменение', title: 'Результаты пробного ЕНТ',
     legend: 'Красный — неверный ответ, жёлтый — нет ответа.', noName: '(нет в списке)',
+    creative: 'Творчество (история + чтение, из 30)',
   },
 };
 const fmt = (s, p) => s.replace(/\{(\w+)\}/g, (_, k) => p[k]);
@@ -62,7 +64,7 @@ export function buildWorkbook(ExcelJS, report, { test, lang = 'ru' }) {
   header(s1, [t.rank, t.id, t.name, t.group, t.variant, t.p1, t.p2, ...PARTS.map(p => p.startsWith('profile') ? `${t[p === 'profile1' ? 'p1' : 'p2']}, ${lang === 'kk' ? 'балл' : 'балл'}` : subjectName(p, lang)), t.total, t.pass, t.note]);
   for (const r of report.rows) {
     const notes = [r.edited ? t.manual : '', r.flags ? fmt(t.flags, { n: r.flags }) : '', r.duplicates ? fmt(t.dup, { n: r.duplicates + 1 }) : ''].filter(Boolean).join('; ');
-    const row = s1.addRow([r.rank ?? '', r.id, r.name || t.noName, r.group, r.variant, subjectName(r.profiles[0], lang), subjectName(r.profiles[1], lang),
+    const row = s1.addRow([r.rank ?? '', r.id, r.name || t.noName, r.group, r.variant, r.creative ? t.creative : subjectName(r.profiles[0], lang), r.creative ? '' : subjectName(r.profiles[1], lang),
       ...PARTS.map(p => r.parts[p] ?? ''), r.total ?? '', r.pass === null ? t.unknown : r.pass ? t.yes : t.no, notes]);
     const passCell = row.getCell(14);
     passCell.fill = r.pass === true ? GREEN : r.pass === false ? RED : GREY;
