@@ -95,7 +95,9 @@ export function keyErrorText(e) {
   const where = [sheet, row].filter(Boolean).join(', ');
   const body = {
     missing: () => t('keys.err.missing', { subject: subjectLabel(e.subject), numbers: compactNumbers(e.numbers) }),
-    badLetters: () => t('keys.err.badLetters', { value: e.value, allowed: e.allowed.length === 6 ? 'A–F' : 'A–E' }),
+    badLetters: () => t('keys.err.badLetters', { value: e.value, allowed: `${e.allowed[0]}–${e.allowed.at(-1)}` }),
+    matchTwo: () => t('keys.err.matchTwo', { value: e.value }),
+    tooMany: () => t('keys.err.tooMany', { value: e.value }),
     oneLetter: () => t('keys.err.oneLetter', { value: e.value }),
     unknownSubject: () => t('keys.err.unknownSubject', { value: e.value }),
     badNumber: () => t('keys.err.badNumber', { value: e.value, max: e.max }),

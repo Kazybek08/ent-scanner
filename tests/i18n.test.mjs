@@ -21,7 +21,7 @@ test('все ключи из кода и HTML есть в переводах', (
     for (const m of s.matchAll(/data-i18n(?:-aria|-placeholder)?="([a-zA-Z0-9_.]+)"/g)) used.add(m[1]);
   }
   // ключи, собираемые из частей: проверяем все известные варианты
-  for (const p of ['edit.reason.multiple', 'edit.reason.weak', 'scan.err.markers', 'scan.err.orientation', 'scan.warn.small', 'flag.answer.weak', 'flag.answer.multiple',
+  for (const p of ['edit.reason.multiple', 'edit.reason.weak', 'scan.err.version', 'keys.err.matchTwo', 'keys.err.tooMany', 'scan.err.markers', 'scan.err.orientation', 'scan.warn.small', 'flag.answer.weak', 'flag.answer.multiple',
     'flag.id', 'flag.variant', 'reason.empty', 'reason.multiple', 'reason.weak', 'nav.students', 'nav.tests', 'nav.print', 'nav.scan', 'nav.review', 'nav.settings']) used.add(p);
   const missing = [...used].filter(k => !(k in kk) || !(k in ru));
   assert.deepEqual(missing, []);

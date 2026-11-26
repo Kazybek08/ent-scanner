@@ -1,7 +1,7 @@
 // ИТОГИ ПРОБНИКА: рейтинг, пороги, средние по группам, анализ вопросов, динамика.
 // Чистые функции (без экрана) — используются экраном «Результаты» и выгрузкой в Excel, покрыты автотестами.
 import { evaluate } from './results.js';
-import { isMulti } from './scoring.js';
+import { maxFor } from './scoring.js';
 
 export const PARTS = ['history', 'mathLit', 'reading', 'profile1', 'profile2'];
 export const DEFAULT_THRESHOLDS = { total: 50, min: { history: 5, mathLit: 3, reading: 3, profile1: 5, profile2: 5 } };
@@ -104,7 +104,7 @@ export function analyzeQuestions(rows, test) {
       if (!k) continue;
       for (const [n, kq] of Object.entries(k)) {
         const id = `${r.variant}|${subject}|${n}`;
-        const s = stats.get(id) ?? { variant: r.variant, subject, part, n: +n, key: kq.a, topic: kq.topic || '', answered: 0, correct: 0, points: 0, max: isMulti(part, +n) ? 2 : 1, wrongCounts: {} };
+        const s = stats.get(id) ?? { variant: r.variant, subject, part, n: +n, key: kq.a, topic: kq.topic || '', answered: 0, correct: 0, points: 0, max: maxFor(part, +n), wrongCounts: {} };
         const marked = r.answers?.[part]?.[n]?.marked ?? '';
         s.answered++;
         const w = (r.wrong[part] ?? []).find(x => x.n === +n);

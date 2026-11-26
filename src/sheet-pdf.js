@@ -1,10 +1,10 @@
-// Генератор PDF бланка ответов v2.
+// Генератор PDF бланка ответов (версия — SHEET_VERSION из template.js).
 // Рисует бланк строго по координатам из template.js.
 // Работает и в браузере, и в Node (для проверки): jsPDF и шрифты передаются снаружи.
 
 import {
   PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECTS_AREA, SUBJECT_BUBBLES,
-  INSTRUCTION_BOX, ANSWER_HEADERS, ANSWER_SECTIONS, VERSION_CODE, SHEET_VERSION,
+  INSTRUCTION_BOX, ANSWER_HEADERS, ANSWER_SECTIONS, VERSION_CODE, SHEET_VERSION, LOWER_PARTS, LOWER_BAND, ROW_PITCH,
 } from './template.js';
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
 
@@ -25,8 +25,10 @@ export const SHEET_TEXT = {
   subjKk: 'Бейіндік пәндер — тек 2 пәнді белгілеңіз',
   subjRu: 'Профильные предметы — отметьте ровно 2',
   instrTitle: 'Нұсқаулық / Инструкция',
-  instrKk: 'Дөңгелекті қара немесе көк қаламмен толық бояңыз. Бір сұраққа — бір жауап; бейіндік пәндердің 31–40 сұрақтарында бір немесе бірнеше жауап болуы мүмкін. Түзетуге болмайды: қателессеңіз, жаңа бланк сұраңыз. Бланкты бүктемеңіз.',
-  instrRu: 'Закрашивайте кружок полностью чёрной или синей ручкой. Один ответ на вопрос; в вопросах 31–40 профильных предметов ответов может быть один или несколько. Исправлять нельзя: при ошибке попросите новый бланк. Не сгибайте бланк.',
+  instrKk: 'Дөңгелекті қара немесе көк қаламмен толық бояңыз. Бір сұраққа — бір жауап. Бейіндік пән: 31–35 сәйкестендіру — 1) және 2) жолдарының әрқайсысында бір дөңгелек; 36–40 — бір, екі немесе үш жауап. Түзетуге болмайды: қателессеңіз, жаңа бланк сұраңыз.',
+  instrRu: 'Закрашивайте кружок полностью чёрной или синей ручкой. Один ответ на вопрос. Профильный предмет: 31–35 сопоставление — в строке 1) и в строке 2) по одному кружку; 36–40 — один, два или три ответа. Исправлять нельзя: при ошибке попросите новый бланк.',
+  partMatch: '31–35 · Сәйкестендіру / Сопоставление',
+  partMulti: '36–40 · 1–3 жауап / ответа',
   right: 'Дұрыс / Правильно:',
   wrong: 'Қате / Неправильно:',
   footer: `ҰБТ-сканер · бланк v${SHEET_VERSION} · 120 сұрақ / вопросов · 140 балл / баллов`,
@@ -120,16 +122,27 @@ export function buildSheetPdf({ jsPDF, fonts, logo, subjects = DEFAULT_SUBJECTS 
     font(6.2);
     doc.text(s.ru, h.x + 1, h.y + 2.8);
   }
-  // тонкие разделители колонок
+  // тонкие разделители колонок: в верхней полосе — 4 колонки, в нижней — только между профилями
   doc.setDrawColor(SOFT);
   doc.setLineWidth(0.15);
-  for (const x of [61, 105, 149]) doc.line(x - 0.5, 106.5, x - 0.5, 268.5);
+  for (const x of [61, 105, 149]) doc.line(x - 0.5, 106.5, x - 0.5, 213.5);
+  doc.line(104.5, 215.5, 104.5, LOWER_BAND.firstRow + 9.6 * ROW_PITCH);
   hline(doc, 214.6);
+
+  // подписи частей нижней полосы: сопоставление и 1–3 ответа
+  for (const p of LOWER_PARTS) {
+    font(5.6, 'bold', 60);
+    doc.text(p.kind === 'match' ? SHEET_TEXT.partMatch : SHEET_TEXT.partMulti, p.x, p.y);
+  }
 
   for (const s of ANSWER_SECTIONS) {
     for (const q of s.questions) {
       font(6.8, 'bold');
       doc.text(String(q.n), q.numberX, q.y, { align: 'right', baseline: 'middle' });
+      for (const l of q.labels ?? []) {
+        font(6, 'bold', 90);
+        doc.text(l.text, l.x, l.y, { align: 'right', baseline: 'middle' });
+      }
       for (const o of q.options) bubble(doc, o.x, o.y, o.letter);
     }
   }

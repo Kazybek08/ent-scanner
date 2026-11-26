@@ -1,19 +1,30 @@
-// ПОДСЧЁТ БАЛЛОВ (раздел 2 ТЗ). Чистые функции — без экрана и хранилища, покрыты автотестами.
+// ПОДСЧЁТ БАЛЛОВ. Чистые функции — без экрана и хранилища, покрыты автотестами.
+// Формат профильного предмета (бланк v3, по пробникам центра):
+//   1–30 — один ответ (1 балл); 31–35 — сопоставление, 2 пары (2/1/0);
+//   36–40 — один–три верных из шести (2 — всё верно, 1 — одна ошибка, иначе 0).
 import { DEFAULT_SUBJECTS } from './subjects.js';
+import { questionType } from './template.js';
 
 export const MAX_TOTAL = 140;
 
 /**
  * Баллы за один вопрос.
- * Обычный вопрос: 1 — если отмечен ровно один кружок и он верный, иначе 0.
- * Вопросы 31–40 профиля (multi): 2 — набор полностью верный, 1 — одна ошибка
- * (один лишний ИЛИ один пропущенный кружок), иначе 0. Пустой ответ — 0.
+ * @param {string} marked  отмеченное: буквы; для сопоставления — две буквы по пунктам («-» — пусто)
+ * @param {string} key     ключ: буквы; для сопоставления — две буквы по пунктам 1) и 2)
+ * @param {'single5'|'single'|'match'|'multi'|boolean} type  (true/false — старый вызов: multi/single)
  * @returns {number|null} null — если нет ключа
  */
-export function scoreQuestion(marked, key, multi) {
+export function scoreQuestion(marked, key, type) {
   if (!key) return null;
+  if (type === true) type = 'multi';
+  if (type === false || type === undefined) type = 'single';
   marked = marked || '';
-  if (!multi) return marked.length === 1 && marked === key ? 1 : 0;
+  if (type === 'match') {
+    let p = 0;
+    for (let i = 0; i < 2; i++) if (marked[i] && marked[i] !== '-' && marked[i] === key[i]) p++;
+    return p;
+  }
+  if (type !== 'multi') return marked.length === 1 && marked === key ? 1 : 0;
   if (!marked) return 0;
   const m = new Set(marked), k = new Set(key);
   let errors = 0;
@@ -22,8 +33,9 @@ export function scoreQuestion(marked, key, multi) {
   return errors === 0 ? 2 : errors === 1 ? 1 : 0;
 }
 
-export const isMulti = (section, n) => (section === 'profile1' || section === 'profile2') && n >= 31;
-export const maxFor = (section, n) => (isMulti(section, n) ? 2 : 1);
+export { questionType };
+export const isMulti = (section, n) => questionType(section, n) === 'multi';
+export const maxFor = (section, n) => { const t = questionType(section, n); return t === 'multi' || t === 'match' ? 2 : 1; };
 
 /**
  * Какой из двух выбранных предметов «Профиль 1», какой «Профиль 2».
@@ -70,14 +82,14 @@ export function scoreSheet({ answers, profiles, key }) {
       continue;
     }
     for (let n = 1; n <= count; n++) {
-      const multi = isMulti(section, n);
-      const pts = scoreQuestion(answers?.[section]?.[n] ?? '', k[n]?.a, multi);
-      const mx = multi ? 2 : 1;
+      const type = questionType(section, n);
+      const pts = scoreQuestion(answers?.[section]?.[n] ?? '', k[n]?.a, type);
+      const mx = maxFor(section, n);
       part.max += mx;
       if (pts === null) { complete = false; continue; }
       part.points += pts;
       if (pts === mx) part.correct++;
-      else part.wrong.push({ n, marked: answers?.[section]?.[n] ?? '', key: k[n].a, points: pts, topic: k[n].topic || '' });
+      else part.wrong.push({ n, marked: answers?.[section]?.[n] ?? '', key: k[n].a, points: pts, max: mx, type, topic: k[n].topic || '' });
     }
     total += part.points;
     max += part.max;

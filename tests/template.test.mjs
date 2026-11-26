@@ -1,30 +1,39 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PAGE, BUBBLE_R, MARKERS, ANSWER_SECTIONS, SUBJECT_BUBBLES, STUDENT_ID, VARIANT, allBubbles,
+  PAGE, BUBBLE_R, MARKERS, ANSWER_SECTIONS, SUBJECT_BUBBLES, STUDENT_ID, VARIANT, allBubbles, SHEET_VERSION, VERSION_CODE, optionsForAnswer,
 } from '../src/template.js';
+
+test('бланк версии 3, код версии внизу совпадает', () => {
+  assert.equal(SHEET_VERSION, 3);
+  const bits = VERSION_CODE.cells.slice(1, 7).map(c => (c.filled ? '1' : '0')).join('');
+  assert.equal(parseInt(bits, 2), 3);
+});
 
 test('в бланке 120 вопросов по блокам 20/10/10/40/40', () => {
   const counts = Object.fromEntries(ANSWER_SECTIONS.map(s => [s.key, s.questions.length]));
   assert.deepEqual(counts, { history: 20, mathLit: 10, reading: 10, profile1: 40, profile2: 40 });
-  const total = ANSWER_SECTIONS.reduce((n, s) => n + s.questions.length, 0);
-  assert.equal(total, 120);
 });
 
-test('вопросы 31–40 профиля имеют варианты A–F, остальные A–E', () => {
+test('кружки: обязательные A–E, профиль 1–30 A–D, 31–35 — два пункта по A–D, 36–40 A–F', () => {
   for (const s of ANSWER_SECTIONS) {
     for (const q of s.questions) {
-      const letters = q.options.map(o => o.letter).join('');
-      const six = s.key.startsWith('profile') && q.n >= 31;
-      assert.equal(letters, six ? 'ABCDEF' : 'ABCDE', `${s.key} №${q.n}`);
+      const letters = q.options.map(o => (o.item ? `${o.item}${o.letter}` : o.letter)).join('');
+      const prof = s.key.startsWith('profile');
+      const want = !prof ? 'ABCDE' : q.n <= 30 ? 'ABCD' : q.n <= 35 ? '1A1B1C1D2A2B2C2D' : 'ABCDEF';
+      assert.equal(letters, want, `${s.key} №${q.n}`);
     }
   }
 });
 
+test('ответ сопоставления «AC» закрашивает 1)A и 2)C', () => {
+  const q = ANSWER_SECTIONS.find(s => s.key === 'profile1').questions.find(q => q.n === 33);
+  assert.deepEqual(optionsForAnswer(q, 'AC').map(o => `${o.item}${o.letter}`), ['1A', '2C']);
+  assert.deepEqual(optionsForAnswer(q, '-D').map(o => `${o.item}${o.letter}`), ['2D']);
+});
+
 test('номера вопросов идут подряд с 1', () => {
-  for (const s of ANSWER_SECTIONS) {
-    s.questions.forEach((q, i) => assert.equal(q.n, i + 1, s.key));
-  }
+  for (const s of ANSWER_SECTIONS) s.questions.forEach((q, i) => assert.equal(q.n, i + 1, s.key));
 });
 
 test('ID — 4 колонки, вариант — 2, предметов — 12', () => {
@@ -37,13 +46,13 @@ test('кружки не меньше 3,3 мм', () => {
   assert.ok(BUBBLE_R * 2 >= 3.3);
 });
 
-test('все кружки внутри прямоугольника угловых меток', () => {
+test('все кружки внутри прямоугольника угловых меток и выше подписи версии', () => {
   const minX = MARKERS[0].x + MARKERS[0].size, maxX = MARKERS[1].x;
-  const minY = MARKERS[0].y + MARKERS[0].size, maxY = MARKERS[2].y;
+  const minY = MARKERS[0].y + MARKERS[0].size;
   for (const b of allBubbles()) {
     assert.ok(b.x - BUBBLE_R > minX && b.x + BUBBLE_R < maxX, `x ${b.group} ${b.x}`);
-    assert.ok(b.y - BUBBLE_R > minY && b.y + BUBBLE_R < maxY, `y ${b.group} ${b.y}`);
-    assert.ok(b.x > 0 && b.x < PAGE.w && b.y > 0 && b.y < PAGE.h);
+    assert.ok(b.y - BUBBLE_R > minY && b.y + BUBBLE_R < VERSION_CODE.textY - 2.5, `y ${b.group} ${b.y}`);
+    assert.ok(b.x > 0 && b.x < PAGE.w);
   }
 });
 
@@ -55,4 +64,10 @@ test('кружки не касаются друг друга (зазор ≥ 0,6
       assert.ok(d >= 2 * BUBBLE_R + 0.6, `${list[i].group} и ${list[j].group}: ${d.toFixed(2)} мм`);
     }
   }
+});
+
+test('профили не залезают друг на друга: правая часть профиля 1 левее профиля 2', () => {
+  const maxX = key => Math.max(...ANSWER_SECTIONS.find(s => s.key === key).questions.filter(q => q.n > 20).flatMap(q => q.options.map(o => o.x)));
+  const minX = key => Math.min(...ANSWER_SECTIONS.find(s => s.key === key).questions.filter(q => q.n > 20).flatMap(q => q.options.map(o => o.x)));
+  assert.ok(maxX('profile1') + BUBBLE_R + 3 < minX('profile2') - 10, `${maxX('profile1')} / ${minX('profile2')}`);
 });

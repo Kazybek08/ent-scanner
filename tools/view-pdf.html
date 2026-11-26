@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -11,7 +11,7 @@
   import * as pdfjs from '../node_modules/pdfjs-dist/build/pdf.min.mjs';
   pdfjs.GlobalWorkerOptions.workerSrc = '../node_modules/pdfjs-dist/build/pdf.worker.min.mjs';
   const q = new URLSearchParams(location.search);
-  const url = q.get('f') || '../out/blank-v2.pdf';
+  const url = q.get('f') || '../out/blank-v3.pdf';
   const scale = Number(q.get('s') || 2);
   const pdf = await pdfjs.getDocument({ url: new URL(url, location.href).href }).promise;
   const page = await pdf.getPage(1);

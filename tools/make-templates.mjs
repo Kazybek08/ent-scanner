@@ -2,8 +2,10 @@
 // docs/students-template.xlsx — ученики; docs/keys-template.xlsx — ключи пробника.
 import ExcelJS from 'exceljs';
 import { DEFAULT_SUBJECTS, SECTIONS } from '../src/subjects.js';
+import { questionType } from '../src/template.js';
 
-const TEAL = 'FF0F766E', TEAL_LIGHT = 'FFD1FAE5', YELLOW = 'FFFEF9C3', GREY = 'FFF1F5F9', RED = 'FFFEE2E2', WHITE = 'FFFFFFFF';
+const TEAL = 'FF0F766E', TEAL_LIGHT = 'FFD1FAE5', YELLOW = 'FFFEF9C3', GREY = 'FFF1F5F9', RED = 'FFFEE2E2', WHITE = 'FFFFFFFF', MATCH = 'FFEDE9FE';
+const MATCH_PAIRS = [...'ABCD'].flatMap(a => [...'ABCD'].map(b => a + b));   // AA, AB, …, DD
 const fill = argb => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
 const thin = { style: 'thin', color: { argb: 'FFCBD5E1' } };
 const box = { top: thin, left: thin, bottom: thin, right: thin };
@@ -109,15 +111,21 @@ async function keysTemplate() {
     '6. Сохраните файл. В приложении: «Пробники и ключи» → нужный пробник → «Загрузить ключи».',
     { h: 'Как писать ответ' },
     { table: [['Вопрос', 'Сколько верных', 'Как писать', 'Пример'],
-              ['Обязательные блоки и вопросы 1–30 профиля', 'ровно один', 'одна буква A, B, C, D или E — выбирается из списка (стрелка справа)', 'C'],
-              ['Вопросы 31–40 профиля', 'один или несколько', 'латинские буквы A–F подряд, без пробелов и запятых', 'ACE  или  B  или  BDF']] },
+              ['Обязательные блоки (История, Мат. грамотность, Грамотность чтения)', 'ровно один', 'одна буква A–E — из списка (стрелка справа)', 'C'],
+              ['Профиль 1–30', 'ровно один', 'одна буква A–D — из списка', 'B'],
+              ['Профиль 31–35 — сопоставление (фиолетовые)', 'по одному для пунктов 1) и 2)', 'ДВЕ буквы по порядку: первая — для 1), вторая — для 2). Выбирается из списка', 'CA  (1→C, 2→A)'],
+              ['Профиль 36–40', 'от одного до трёх', 'латинские буквы A–F подряд, без пробелов', 'ACE  или  B  или  BD']] },
+    { h: 'Сопоставление: как оформить вопрос в самом тесте' },
+    'На бланке у вопросов 31–35 две строки кружков: 1) и 2). Поэтому в тесте пункты должны быть пронумерованы 1) и 2), а варианты — буквами A, B, C, D (как в тесте по химии).',
+    { text: 'Если в тесте наоборот (пункты A) и B), варианты 1–4 — как в биологии), переделайте: A) → 1), B) → 2), варианты 1 → A, 2 → B, 3 → C, 4 → D. Иначе ученики запутаются при закрашивании.', warn: true },
     { text: 'Буквы — ЛАТИНСКИЕ. Русские А, В, С, Е выглядят так же, но это другие символы. Приложение их исправит само, но лучше сразу писать латиницей (английская раскладка).', warn: true },
     { h: 'Тема (необязательно)' },
     'Короткое название темы вопроса: «Казахское ханство», «Логарифмы». По темам приложение найдёт, какие темы трудные месяц за месяцем. Можно оставить пустым.',
     { h: 'Частые ошибки' },
     { text: '✗ У профильного предмета заполнена только часть вопросов (например, 1–30 без 31–40) — приложение не примет файл.', bad: true },
-    { text: '✗ В обычном вопросе два ответа («AB») — так можно только в 31–40 профиля.', bad: true },
-    { text: '✗ Буква F в обычном вопросе или G, H — допустимы только A–E (и F в 31–40).', bad: true },
+    { text: '✗ В обычном вопросе два ответа («AB») — так можно только в 36–40 профиля.', bad: true },
+    { text: '✗ В сопоставлении одна буква («C») или три — нужно ровно две: для 1) и для 2).', bad: true },
+    { text: '✗ Буква E в профиле 1–35 или F вне 36–40 — у этих вопросов таких вариантов нет.', bad: true },
     { text: '✗ Переименованы листы («Вариант первый») — название листа должно содержать номер: «01», «02».', bad: true },
     { text: 'Если в файле ошибка, приложение ключи НЕ сохранит и покажет список: лист, строка и что не так. Исправьте и загрузите снова.', warn: true },
   ]).columns = [{ width: 4 }, { width: 42 }, { width: 20 }, { width: 60 }, { width: 22 }];
@@ -153,14 +161,23 @@ async function keysTemplate() {
         ans.font = { bold: true, size: 12 };
         ans.protection = { locked: false };
         row.getCell(4).protection = { locked: false };
-        const multi = !s.compulsory && n >= 31;
-        ans.dataValidation = multi
-          ? { type: 'textLength', operator: 'between', allowBlank: true, formulae: [1, 6],
-              showInputMessage: true, promptTitle: `${s.name}, №${n}`, prompt: 'Один или несколько верных: латинские A–F подряд, например ACE',
-              showErrorMessage: true, errorTitle: 'Ответ', error: 'От 1 до 6 латинских букв A–F, без пробелов: например ACE' }
-          : { type: 'list', allowBlank: true, formulae: ['"A,B,C,D,E"'],
-              showInputMessage: true, promptTitle: `${s.name}, №${n}`, prompt: 'Один верный ответ: выберите A, B, C, D или E',
-              showErrorMessage: true, errorTitle: 'Ответ', error: 'Только одна буква: A, B, C, D или E (латиница)' };
+        const type = s.compulsory ? 'single5' : questionType('profile1', n);
+        const title = `${s.name}, №${n}`;
+        if (type === 'match') row.getCell(3).fill = fill(MATCH);     // сопоставление — фиолетовые ячейки
+        ans.dataValidation = {
+          single5: { type: 'list', allowBlank: true, formulae: ['"A,B,C,D,E"'],
+            showInputMessage: true, promptTitle: title, prompt: 'Один верный ответ: A, B, C, D или E',
+            showErrorMessage: true, errorTitle: 'Ответ', error: 'Только одна буква: A, B, C, D или E (латиница)' },
+          single: { type: 'list', allowBlank: true, formulae: ['"A,B,C,D"'],
+            showInputMessage: true, promptTitle: title, prompt: 'Один верный ответ: A, B, C или D',
+            showErrorMessage: true, errorTitle: 'Ответ', error: 'Только одна буква: A, B, C или D (латиница)' },
+          match: { type: 'list', allowBlank: true, formulae: [`"${MATCH_PAIRS.join(',')}"`],
+            showInputMessage: true, promptTitle: `${title} — сопоставление`, prompt: 'Две буквы по порядку: первая — ответ для пункта 1), вторая — для 2). Например CA',
+            showErrorMessage: true, errorTitle: 'Сопоставление', error: 'Две буквы A–D по порядку: для пункта 1) и для пункта 2). Например CA' },
+          multi: { type: 'textLength', operator: 'between', allowBlank: true, formulae: [1, 3],
+            showInputMessage: true, promptTitle: title, prompt: 'От одной до трёх верных: латинские A–F подряд, например ACE',
+            showErrorMessage: true, errorTitle: 'Ответ', error: 'От 1 до 3 латинских букв A–F без пробелов: например ACE' },
+        }[type];
         if (n === s.count) row.getCell(1).border = { ...box, bottom: { style: 'medium', color: { argb: TEAL } } };
       }
     });
@@ -180,7 +197,7 @@ async function keysTemplate() {
       row.getCell(9).font = { bold: true };
     });
     const note = ws.getRow(2 + subjects.length + 1);
-    note.getCell(6).value = 'Жёлтые — обязательные, заполнить все.';
+    note.getCell(6).value = 'Жёлтые — обязательные. Фиолетовые (31–35) — сопоставление: две буквы.';
     note.getCell(6).font = { italic: true, color: { argb: 'FF64748B' } };
     ws.mergeCells(2 + subjects.length + 1, 6, 2 + subjects.length + 1, 9);
     // статус: зелёный / красный

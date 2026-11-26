@@ -9,7 +9,8 @@ import { drawOverlay } from './overlay.js';
 import { ANSWER_SECTIONS, STUDENT_ID, VARIANT } from './template.js';
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
 import { subjectLabel } from './tests-screen.js';
-import { isMulti } from './scoring.js';
+import { questionType } from './scoring.js';
+import { optionsForAnswer } from './template.js';
 import { getAppSettings } from './app-settings.js';
 
 let S = null;   // состояние открытого бланка
@@ -85,10 +86,16 @@ function setAnswer(sec, n, marked) {
   render();
 }
 
-function toggleLetter(sec, n, letter) {
+function toggleLetter(sec, n, letter, item) {
   const cur = effective(withDraft()).answers[sec][n].marked;
+  const type = questionType(sec, n);
   let next;
-  if (isMulti(sec, n)) {
+  if (type === 'match') {
+    // сопоставление: у каждого пункта одна буква; повторное нажатие — снять
+    const pair = [(cur || '--')[0] || '-', (cur || '--')[1] || '-'];
+    pair[item - 1] = pair[item - 1] === letter ? '-' : letter;
+    next = pair.join('') === '--' ? '' : pair.join('');
+  } else if (type === 'multi') {
     const set = new Set(cur);
     set.has(letter) ? set.delete(letter) : set.add(letter);
     next = [...set].sort().join('');
@@ -118,11 +125,18 @@ function crop(key, box, ppm) {
 function letterButtons(sec, n, eff) {
   const q = ANSWER_SECTIONS.find(s => s.key === sec).questions.find(q => q.n === +n);
   const a = eff.answers[sec][n];
-  return el('div', { class: `letters${a.edited ? ' is-edited' : ''}`, role: 'group' },
-    q.options.map(o => el('button', {
-      type: 'button', class: 'letter', 'aria-pressed': String(a.marked.includes(o.letter)), text: o.letter,
-      'aria-label': `${n} ${o.letter}`, onclick: () => toggleLetter(sec, n, o.letter),
-    })));
+  const on = new Set(optionsForAnswer(q, a.marked || ''));
+  const btn = o => el('button', {
+    type: 'button', class: 'letter', 'aria-pressed': String(on.has(o)), text: o.letter,
+    'aria-label': `${n} ${o.item ? o.item + ') ' : ''}${o.letter}`, onclick: () => toggleLetter(sec, n, o.letter, o.item),
+  });
+  if (q.type === 'match') {
+    // две строки: «1) A B C D» и «2) A B C D»
+    return el('div', { class: `match-rows${a.edited ? ' is-edited' : ''}` }, [1, 2].map(item =>
+      el('div', { class: `letters match-row${a.edited ? ' is-edited' : ''}`, role: 'group' },
+        el('span', { class: 'match-label', text: `${item})` }), q.options.filter(o => o.item === item).map(btn))));
+  }
+  return el('div', { class: `letters${a.edited ? ' is-edited' : ''}`, role: 'group' }, q.options.map(btn));
 }
 
 function flagTitle(f) {

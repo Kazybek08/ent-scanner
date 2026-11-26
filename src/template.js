@@ -1,11 +1,11 @@
-// ЕДИНЫЙ ШАБЛОН БЛАНКА v2.
+// ЕДИНЫЙ ШАБЛОН БЛАНКА (версия — SHEET_VERSION).
 // Все координаты — в миллиметрах от левого верхнего угла листа A4.
 // По этому файлу строится PDF для печати И идёт распознавание фото.
 // Если что-то двигаете на бланке — меняйте только здесь.
 
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
 
-export const SHEET_VERSION = 2;
+export const SHEET_VERSION = 3;
 export const PAGE = { w: 210, h: 297 };
 
 export const BUBBLE_R = 1.8;        // радиус кружка: диаметр 3,6 мм (ТЗ: не меньше 3,3)
@@ -61,23 +61,43 @@ export const INSTRUCTION_BOX = { x: 66, y: 80, w: 127, h: 24 };
 const UPPER = { headerY: 108, firstRow: 115 };
 const LOWER = { headerY: 217, firstRow: 225 };
 
-function questionRows({ x0, firstRow, startSlot, from, to, letters }) {
+// Типы вопросов (бланк v3, по настоящим пробникам центра):
+//  single5 — обязательные блоки: один ответ из A–E;
+//  single  — профиль 1–30: один ответ из A–D;
+//  match   — профиль 31–35, сопоставление: два пункта 1) и 2), у каждого один ответ из A–D;
+//  multi   — профиль 36–40: один–три верных из A–F.
+export function questionType(section, n) {
+  if (section !== 'profile1' && section !== 'profile2') return 'single5';
+  if (n <= 30) return 'single';
+  if (n <= 35) return 'match';
+  return 'multi';
+}
+export const LETTERS = { single5: 'ABCDE', single: 'ABCD', match: 'ABCD', multi: 'ABCDEF' };
+
+function questionRows({ x0, firstRow, startSlot, from, to, section }) {
   const rows = [];
   for (let n = from; n <= to; n++) {
     const y = firstRow + (startSlot + n - from) * ROW_PITCH;
-    rows.push({
-      n,
-      numberX: x0 + 6.5,             // правый край номера вопроса
-      y,
-      options: [...letters].map((letter, j) => ({ letter, x: x0 + 10 + j * OPT_PITCH, y })),
-    });
+    const type = questionType(section, n);
+    const q = { n, type, numberX: x0 + 6.5, y, options: [], labels: [] };   // numberX — правый край номера
+    if (type === 'match') {
+      // «31  1) A B C D   2) A B C D»
+      for (const item of [1, 2]) {
+        const bx = x0 + (item === 1 ? 12 : 38.5);
+        // подпись «1)»/«2)» — правым краем на 3,2 мм левее центра первого кружка: не попадает в зону измерения
+        q.labels.push({ text: `${item})`, x: bx - (item === 1 ? 2.6 : 3.4), y });
+        [...LETTERS.match].forEach((letter, j) => q.options.push({ letter, item, x: bx + j * OPT_PITCH, y }));
+      }
+    } else {
+      q.options = [...LETTERS[type]].map((letter, j) => ({ letter, x: x0 + 10 + j * OPT_PITCH, y }));
+    }
+    rows.push(q);
   }
   return rows;
 }
 
 const colX = c => LEFT + c * COL_W;
-const ABCDE = 'ABCDE';
-const ABCDEF = 'ABCDEF';
+const RIGHT_PART = 28;      // в нижней полосе: правая часть профиля (31–40) сдвинута на 28 мм
 
 // Заголовки блоков (для рисования) — где и что написано.
 export const ANSWER_HEADERS = [
@@ -89,20 +109,42 @@ export const ANSWER_HEADERS = [
   { section: 'profile1', x: colX(0), y: LOWER.headerY, w: COL_W * 2, range: '21–40' },
   { section: 'profile2', x: colX(2), y: LOWER.headerY, w: COL_W * 2, range: '21–40' },
 ];
+// Подписи частей нижней полосы: «31–35 сәйкестендіру / сопоставление», «36–40 …»
+export const LOWER_PARTS = [0, 2].flatMap(c => [
+  { kind: 'match', x: colX(c) + RIGHT_PART + 1, y: LOWER.firstRow - 2.6 },
+  { kind: 'multi', x: colX(c) + RIGHT_PART + 1, y: LOWER.firstRow + 4 * ROW_PITCH + 4.9 },
+]);
+export const LOWER_BAND = { top: LOWER.headerY - 3, firstRow: LOWER.firstRow, rows: 10 };
 
-const up = (c, from, to, startSlot = 0) =>
-  questionRows({ x0: colX(c), firstRow: UPPER.firstRow, startSlot, from, to, letters: ABCDE });
-const low = (c, from, to, letters) =>
-  questionRows({ x0: colX(c), firstRow: LOWER.firstRow, startSlot: 0, from, to, letters });
+const up = (c, section, from, to, startSlot = 0) =>
+  questionRows({ x0: colX(c), firstRow: UPPER.firstRow, startSlot, from, to, section });
+const low = (x0, section, from, to, startSlot = 0) =>
+  questionRows({ x0, firstRow: LOWER.firstRow, startSlot, from, to, section });
 
 // Секции ответов: ключ секции → список вопросов с координатами кружков.
 export const ANSWER_SECTIONS = SECTIONS.map(s => ({ ...s, questions: [] }));
 const sec = key => ANSWER_SECTIONS.find(s => s.key === key);
-sec('history').questions.push(...up(0, 1, 20));
-sec('mathLit').questions.push(...up(1, 1, 10));
-sec('reading').questions.push(...up(1, 1, 10, 12));      // после заголовка «Грамотность чтения»
-sec('profile1').questions.push(...up(2, 1, 20), ...low(0, 21, 30, ABCDE), ...low(1, 31, 40, ABCDEF));
-sec('profile2').questions.push(...up(3, 1, 20), ...low(2, 21, 30, ABCDE), ...low(3, 31, 40, ABCDEF));
+sec('history').questions.push(...up(0, 'history', 1, 20));
+sec('mathLit').questions.push(...up(1, 'mathLit', 1, 10));
+sec('reading').questions.push(...up(1, 'reading', 1, 10, 12));      // после заголовка «Грамотность чтения»
+for (const [key, upCol, lowCol] of [['profile1', 2, 0], ['profile2', 3, 2]]) {
+  const x0 = colX(lowCol);
+  sec(key).questions.push(
+    ...up(upCol, key, 1, 20),
+    ...low(x0, key, 21, 30),                            // слева: 21–30
+    ...low(x0 + RIGHT_PART, key, 31, 35),               // справа сверху: сопоставление
+    ...low(x0 + RIGHT_PART, key, 36, 40, 5.75),         // справа снизу: несколько ответов (после подписи)
+  );
+}
+
+/** Какие кружки закрашены для ответа ans (для сопоставления ans — две буквы по пунктам, «-» — пусто). */
+export function optionsForAnswer(q, ans = '') {
+  if (q.type === 'match') return q.options.filter(o => ans[o.item - 1] === o.letter);
+  return q.options.filter(o => ans.includes(o.letter));
+}
+
+/** Код кружка: для сопоставления — «1A», «2C», для остальных — буква. */
+export const optionCode = o => (o.item ? `${o.item}${o.letter}` : o.letter);
 
 // ---------- Код версии бланка внизу ----------
 // 8 клеток 3×3 мм между нижними метками: клетки 0 и 7 всегда чёрные (рамка),

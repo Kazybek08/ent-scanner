@@ -1,14 +1,14 @@
 // Лаборатория распознавания (только для разработки, в приложение не входит).
-// Делает «фото» НАСТОЯЩЕГО бланка из out/blank-v2.pdf с закрашенными ответами.
+// Делает «фото» НАСТОЯЩЕГО бланка из out/blank-v<версия>.pdf с закрашенными ответами.
 import * as pdfjs from '../vendor/pdfjs/pdf.min.mjs';
-import { STUDENT_ID, VARIANT, SUBJECT_BUBBLES, ANSWER_SECTIONS, PAGE } from '../src/template.js';
+import { STUDENT_ID, VARIANT, SUBJECT_BUBBLES, ANSWER_SECTIONS, PAGE, SHEET_VERSION, LETTERS, optionsForAnswer, optionCode } from '../src/template.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).href;
 
 let pageCanvasPromise;
 async function sheetCanvas(pxPerMm = 6) {
   return (pageCanvasPromise ??= (async () => {
-    const pdf = await pdfjs.getDocument({ url: new URL('../out/blank-v2.pdf', import.meta.url).href }).promise;
+    const pdf = await pdfjs.getDocument({ url: new URL(`../out/blank-v${SHEET_VERSION}.pdf`, import.meta.url).href }).promise;
     const page = await pdf.getPage(1);
     const vp = page.getViewport({ scale: (pxPerMm * 25.4) / 72 });
     const c = document.createElement('canvas');
@@ -32,9 +32,11 @@ export function randomSheet(seed) {
     answers[sec.key] = {};
     for (const q of sec.questions) {
       if (R() > 0.9) continue;
-      const L = q.options.map(o => o.letter);
-      if (L.length === 6) { const p = L.filter(() => R() < 0.35); answers[sec.key][q.n] = p.length ? p.join('') : L[(R() * 6) | 0]; }
-      else answers[sec.key][q.n] = L[(R() * 5) | 0];
+      const L = LETTERS[q.type];
+      const one = () => L[(R() * L.length) | 0];
+      if (q.type === 'match') answers[sec.key][q.n] = one() + one();
+      else if (q.type === 'multi') { const s = new Set(); const n = 1 + ((R() * 3) | 0); while (s.size < n) s.add(one()); answers[sec.key][q.n] = [...s].sort().join(''); }
+      else answers[sec.key][q.n] = one();
     }
   }
   return {
@@ -61,9 +63,9 @@ export async function makePhoto({ answers, id, variant, subjects, faint = [] }, 
     sx.fill();
   };
   [...id].forEach((d, i) => { if (d === '?') return; const b = STUDENT_ID.columns[i].bubbles[+d]; dot(b.x, b.y); });
-  // бледные (сомнительные) отметки: [секция, номер, буква]
+  // бледные (сомнительные) отметки: [секция, номер, код кружка: «C» или для сопоставления «2C»]
   for (const [sec, n, L] of faint) {
-    const o = ANSWER_SECTIONS.find(s => s.key === sec).questions.find(q => q.n === n).options.find(o => o.letter === L);
+    const o = ANSWER_SECTIONS.find(s => s.key === sec).questions.find(q => q.n === n).options.find(o => optionCode(o) === L);
     const keep = sx.fillStyle;
     sx.fillStyle = 'rgba(110,110,120,0.45)';
     dot(o.x, o.y);
@@ -72,7 +74,7 @@ export async function makePhoto({ answers, id, variant, subjects, faint = [] }, 
   [...variant].forEach((d, i) => { const b = VARIANT.columns[i].bubbles[+d]; dot(b.x, b.y); });
   subjects.forEach(s => dot(SUBJECT_BUBBLES[s].x, SUBJECT_BUBBLES[s].y));
   for (const sec of ANSWER_SECTIONS) for (const q of sec.questions)
-    for (const L of answers[sec.key]?.[q.n] ?? '') { const o = q.options.find(o => o.letter === L); dot(o.x, o.y); }
+    for (const o of optionsForAnswer(q, answers[sec.key]?.[q.n] ?? '')) dot(o.x, o.y);
 
   const out = document.createElement('canvas');
   out.width = w; out.height = h;

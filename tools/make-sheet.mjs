@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { jsPDF } from 'jspdf';
 import { buildSheetPdf } from '../src/sheet-pdf.js';
+import { SHEET_VERSION } from '../src/template.js';
 
 const root = new URL('..', import.meta.url);
 const b64 = async p => (await readFile(new URL(p, root))).toString('base64');
@@ -24,5 +25,6 @@ if (existsSync(logoUrl)) {
 
 const doc = buildSheetPdf({ jsPDF, fonts, logo });
 await mkdir(new URL('out/', root), { recursive: true });
-await writeFile(new URL('out/blank-v2.pdf', root), Buffer.from(doc.output('arraybuffer')));
-console.log('Готово: out/blank-v2.pdf', logo ? '(с логотипом)' : '(логотип-заглушка)');
+const name = `out/blank-v${SHEET_VERSION}.pdf`;
+await writeFile(new URL(name, root), Buffer.from(doc.output('arraybuffer')));
+console.log('Готово:', name, logo ? '(с логотипом)' : '(логотип-заглушка)');

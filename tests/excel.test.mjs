@@ -40,7 +40,7 @@ test('ответы: русские А, В, С, Е превращаются в л
 
 test('заполненный шаблон читается: обязательные блоки и два профиля', () => {
   const wb = fillTemplate('ru', (subj, n) => {
-    if (['Математика', 'Физика'].includes(subj)) return n >= 31 ? 'ace' : 'D';
+    if (['Математика', 'Физика'].includes(subj)) return n >= 36 ? 'eca' : n >= 31 ? '1-C, 2-a' : 'D';
     if (['История Казахстана', 'Математическая грамотность', 'Грамотность чтения'].includes(subj)) return 'С';
     return undefined;
   });
@@ -48,15 +48,36 @@ test('заполненный шаблон читается: обязательн
   assert.deepEqual(r.errors, []);
   assert.deepEqual(Object.keys(r.keys).sort(), ['01', '02']);
   assert.equal(r.keys['01'].history[20].a, 'C');
-  assert.equal(r.keys['01'].subjects.math[33].a, 'ACE');
+  assert.equal(r.keys['01'].subjects.math[33].a, 'CA', 'сопоставление: порядок пунктов сохраняется');
+  assert.equal(r.keys['01'].subjects.math[38].a, 'ACE', 'несколько ответов — по алфавиту');
   assert.deepEqual(r.summary['02'].subjects.sort(), ['math', 'physics']);
+});
+
+test('ключи v3: в профиле 1–30 только A–D, сопоставление — ровно 2 буквы, 36–40 — не больше трёх', () => {
+  const wb = fillTemplate('ru', (subj, n) => {
+    if (['История Казахстана', 'Математическая грамотность', 'Грамотность чтения'].includes(subj)) return 'E';
+    if (subj === 'Химия') {
+      if (n === 5) return 'E';           // в профиле 1–30 буквы E нет
+      if (n === 31) return 'C';          // сопоставление: одна буква
+      if (n === 32) return 'ACB';        // сопоставление: три буквы
+      if (n === 33) return 'AE';         // E нет в сопоставлении
+      if (n === 37) return 'ABCD';       // больше трёх верных
+      return n >= 36 ? 'AB' : n >= 31 ? 'DD' : 'B';
+    }
+    return undefined;
+  });
+  const r = parseKeysWorkbook(XLSX, wb);
+  const got = r.errors.filter(e => e.sheet === '01').map(e => `${e.code}:${e.row}`);
+  const rowOf = n => 1 + 40 + 2 * 40 + n;   // строка Excel: заголовок + обязательные 40 + математика и физика + n
+  assert.deepEqual(got.sort(), [`badLetters:${rowOf(33)}`, `badLetters:${rowOf(5)}`, `matchTwo:${rowOf(31)}`, `matchTwo:${rowOf(32)}`, `tooMany:${rowOf(37)}`].sort());
+  assert.equal(r.keys['01'].subjects.chemistry[34].a, 'DD', 'один вариант может подходить обоим пунктам');
 });
 
 test('ошибки в ключах находятся с номером строки', () => {
   const wb = fillTemplate('kk', (subj, n) => {
     if (subj === 'Қазақстан тарихы') return n === 7 ? '' : n === 8 ? 'AB' : n === 9 ? 'G' : 'A';
     if (subj === 'Математикалық сауаттылық' || subj === 'Оқу сауаттылығы') return 'B';
-    if (subj === 'Математика') return n === 40 ? undefined : n >= 31 ? 'F' : 'E';
+    if (subj === 'Математика') return n === 40 ? undefined : n >= 36 ? 'F' : n >= 31 ? 'AB' : 'D';
     return undefined;
   });
   const r = parseKeysWorkbook(XLSX, wb);

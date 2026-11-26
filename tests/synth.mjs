@@ -1,6 +1,6 @@
 // Генератор искусственных «фото» заполненного бланка для автотестов распознавания.
 import {
-  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECT_BUBBLES, ANSWER_SECTIONS, VERSION_CODE,
+  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECT_BUBBLES, ANSWER_SECTIONS, VERSION_CODE, LETTERS, optionsForAnswer, optionCode,
 } from '../src/template.js';
 import { homography, project } from '../src/omr.js';
 
@@ -11,7 +11,7 @@ export function rng(seed) {
 }
 
 // ---------- лист бланка в растре (px/мм = k) ----------
-function drawPage(k, marks) {
+function drawPage(k, marks, version = null) {
   const W = Math.round(PAGE.w * k), Hh = Math.round(PAGE.h * k);
   const p = new Float32Array(W * Hh).fill(245);
   const put = (x, y, v) => { if (x >= 0 && y >= 0 && x < W && y < Hh) { const i = y * W + x; if (v < p[i]) p[i] = v; } };
@@ -29,11 +29,14 @@ function drawPage(k, marks) {
   const ring = (cx, cy) => shape(cx, cy, BUBBLE_R + 0.2, 70, (dx, dy) => Math.abs(Math.hypot(dx, dy) - BUBBLE_R) <= 0.13);
 
   for (const m of MARKERS) rect(m.x, m.y, m.size, m.size, 15);
-  for (const c of VERSION_CODE.cells) {
-    if (c.filled) rect(c.x, c.y, c.size, c.size, 15);
+  // version — нарисовать код другой (например, старой) версии бланка
+  const bits = version === null ? null : version.toString(2).padStart(6, '0');
+  VERSION_CODE.cells.forEach((c, i) => {
+    const filled = bits === null ? c.filled : (i === 0 || i === VERSION_CODE.cells.length - 1 || bits[i - 1] === '1');
+    if (filled) rect(c.x, c.y, c.size, c.size, 15);
     else { rect(c.x, c.y, c.size, 0.2, 15); rect(c.x, c.y + c.size - 0.2, c.size, 0.2, 15);
            rect(c.x, c.y, 0.2, c.size, 15); rect(c.x + c.size - 0.2, c.y, 0.2, c.size, 15); }
-  }
+  });
   // «текст» шапки и подписи
   for (let i = 0; i < 18; i++) rect(55 + i * 7.5, 12.5, 5.5, 3.6, 20);
   for (let i = 0; i < 16; i++) rect(62 + i * 7.5, 19, 5.5, 3.2, 20);
@@ -75,10 +78,10 @@ function drawPage(k, marks) {
  * @param {number} o.seed
  * @param {'portrait'|'landscape'|'upside'} [o.orient]
  */
-export function synthPhoto({ marks, seed = 1, orient = 'portrait', camW = 1200, camH = 1600, tilt = 1, lighting = 1, noise = 6 }) {
+export function synthPhoto({ marks, seed = 1, orient = 'portrait', camW = 1200, camH = 1600, tilt = 1, lighting = 1, noise = 6, version = null }) {
   const R = rng(seed);
   const k = 6;
-  const page = drawPage(k, marks);
+  const page = drawPage(k, marks, version);
   // углы листа на фото: случайная перспектива
   const jitter = (v) => (R() - 0.5) * v * tilt;
   const outW = orient === 'landscape' ? camH : camW, outH = orient === 'landscape' ? camW : camH;
@@ -121,19 +124,23 @@ export function synthPhoto({ marks, seed = 1, orient = 'portrait', camW = 1200, 
 }
 
 // Удобный конструктор отметок: что и как закрашено.
-export function buildMarks({ id = '0001', variant = '01', subjects = [0, 1], answers = {}, style = {} }) {
+// Ответ сопоставления — две буквы по пунктам 1) и 2) («-» — пункт пустой); стиль — ключ «секция:№:1A».
+// extra: дополнительные кружки [секция, №, код] (например, второй кружок в строке сопоставления).
+export function buildMarks({ id = '0001', variant = '01', subjects = [0, 1], answers = {}, style = {}, extra = [] }) {
   const marks = [];
-  [...id].forEach((d, i) => { const b = STUDENT_ID.columns[i].bubbles[+d]; marks.push({ x: b.x, y: b.y, type: 'full' }); });
+  [...id].forEach((d, i) => { if (d === '?') return; const b = STUDENT_ID.columns[i].bubbles[+d]; marks.push({ x: b.x, y: b.y, type: 'full' }); });
   [...variant].forEach((d, i) => { const b = VARIANT.columns[i].bubbles[+d]; marks.push({ x: b.x, y: b.y, type: 'full' }); });
   for (const s of subjects) { const b = SUBJECT_BUBBLES[s]; marks.push({ x: b.x, y: b.y, type: 'full' }); }
   for (const sec of ANSWER_SECTIONS) {
     for (const q of sec.questions) {
-      const letters = answers[sec.key]?.[q.n] ?? '';
-      for (const L of letters) {
-        const o = q.options.find(o => o.letter === L);
-        marks.push({ x: o.x, y: o.y, type: style[`${sec.key}:${q.n}:${L}`] ?? 'full' });
+      for (const o of optionsForAnswer(q, answers[sec.key]?.[q.n] ?? '')) {
+        marks.push({ x: o.x, y: o.y, type: style[`${sec.key}:${q.n}:${optionCode(o)}`] ?? 'full' });
       }
     }
+  }
+  for (const [sec, n, code] of extra) {
+    const o = ANSWER_SECTIONS.find(s => s.key === sec).questions.find(q => q.n === n).options.find(o => optionCode(o) === code);
+    marks.push({ x: o.x, y: o.y, type: 'full' });
   }
   return marks;
 }
@@ -144,11 +151,17 @@ export function randomAnswers(R, fillRate = 0.9) {
     answers[sec.key] = {};
     for (const q of sec.questions) {
       if (R() > fillRate) continue;
-      const letters = q.options.map(o => o.letter);
-      if (letters.length === 6) {
-        const pick = letters.filter(() => R() < 0.35);
-        answers[sec.key][q.n] = pick.length ? pick.join('') : letters[(R() * 6) | 0];
-      } else answers[sec.key][q.n] = letters[(R() * 5) | 0];
+      const letters = LETTERS[q.type];
+      const pickOne = () => letters[(R() * letters.length) | 0];
+      if (q.type === 'match') {
+        const a = (R() < 0.08 ? '-' : pickOne()) + (R() < 0.08 ? '-' : pickOne());
+        if (a !== '--') answers[sec.key][q.n] = a;
+      } else if (q.type === 'multi') {
+        const n = 1 + ((R() * 3) | 0);
+        const set = new Set();
+        while (set.size < n) set.add(pickOne());
+        answers[sec.key][q.n] = [...set].sort().join('');
+      } else answers[sec.key][q.n] = pickOne();
     }
   }
   return answers;

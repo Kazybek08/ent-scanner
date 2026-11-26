@@ -44,13 +44,41 @@ test('бланк повёрнут на 90° и вверх ногами', () => {
 });
 
 test('синяя ручка и неаккуратная заливка засчитываются', () => {
-  const answers = { history: { 1: 'A', 2: 'B' }, profile1: { 33: 'ACE' } };
-  const style = { 'history:1:A': 'blue', 'history:2:B': 'messy', 'profile1:33:C': 'blue' };
+  const answers = { history: { 1: 'A', 2: 'B' }, profile1: { 37: 'ACE', 32: 'DB' } };
+  const style = { 'history:1:A': 'blue', 'history:2:B': 'messy', 'profile1:37:C': 'blue', 'profile1:32:2B': 'blue' };
   const res = recognize(synthPhoto({ marks: buildMarks({ answers, style }), seed: 3 }));
   assert.equal(res.answers.history[1].marked, 'A');
   assert.equal(res.answers.history[2].marked, 'B');
-  assert.equal(res.answers.profile1[33].marked, 'ACE');
+  assert.equal(res.answers.profile1[37].marked, 'ACE');
+  assert.equal(res.answers.profile1[32].marked, 'DB');
   assert.equal(res.flags.length, 0, JSON.stringify(res.flags));
+});
+
+test('сопоставление 31–35: пункты читаются по отдельности, порядок сохраняется', () => {
+  const answers = { profile1: { 31: 'AC', 32: 'D-', 33: 'BB', 34: '-A', 35: 'CA' }, profile2: { 31: 'DD' } };
+  const res = recognize(synthPhoto({ marks: buildMarks({ answers }), seed: 11 }));
+  const got = Object.fromEntries([31, 32, 33, 34, 35].map(n => [n, res.answers.profile1[n].marked]));
+  assert.deepEqual(got, { 31: 'AC', 32: 'D-', 33: 'BB', 34: '-A', 35: 'CA' });
+  assert.equal(res.answers.profile2[31].marked, 'DD');
+  assert.equal(res.answers.profile2[32].marked, '', 'пустой вопрос');
+  assert.equal(res.answers.profile2[32].status, 'empty');
+  assert.equal(res.flags.length, 0, JSON.stringify(res.flags));
+});
+
+test('сопоставление: два кружка в одной строке — подсветка, пункт не засчитывается', () => {
+  const answers = { profile2: { 34: 'AC' } };
+  const res = recognize(synthPhoto({ marks: buildMarks({ answers, extra: [['profile2', 34, '1B']] }), seed: 12 }));
+  const a = res.answers.profile2[34];
+  assert.equal(a.marked, '-C', 'первый пункт неоднозначен');
+  assert.equal(a.status, 'check');
+  assert.ok(res.flags.some(f => f.kind === 'answer' && f.section === 'profile2' && f.n === 34 && f.reason === 'multiple'));
+});
+
+test('старый бланк v2 не читается по разметке v3 — понятная ошибка', () => {
+  const res = recognize(synthPhoto({ marks: buildMarks({}), seed: 13, version: 2 }));
+  assert.equal(res.ok, false);
+  assert.equal(res.error, 'version');
+  assert.equal(res.sheetVersion, 2);
 });
 
 test('сомнительные отметки подсвечиваются, а не засчитываются молча', () => {

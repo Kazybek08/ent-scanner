@@ -4,7 +4,7 @@
 // Работает и в браузере, и в Node (для автотестов).
 
 import {
-  MARKERS, BUBBLE_R, STUDENT_ID, VARIANT, SUBJECT_BUBBLES, ANSWER_SECTIONS, VERSION_CODE,
+  MARKERS, BUBBLE_R, STUDENT_ID, VARIANT, SUBJECT_BUBBLES, ANSWER_SECTIONS, VERSION_CODE, SHEET_VERSION,
 } from './template.js';
 import { DEFAULT_SUBJECTS } from './subjects.js';
 
@@ -254,15 +254,23 @@ function squareInk(norm, w, h, H, X, Y, half) {
   return s / n;
 }
 
-// ---------- 5. Ориентация по коду версии ----------
-function orientationScore(norm, w, h, H) {
+// ---------- 5. Ориентация и версия по коду внизу бланка ----------
+// Крайние клетки кода (0 и 7) всегда чёрные — по ним и по 4 меткам находим, где низ бланка.
+// Клетки 1–6 — номер версии бланка в двоичном виде: так старый бланк не прочитается по новой разметке.
+function orientationInfo(norm, w, h, H) {
   let score = 0;
-  for (const c of VERSION_CODE.cells) {
-    const ink = squareInk(norm, w, h, H, c.x + c.size / 2, c.y + c.size / 2, c.size * 0.3);
-    if (c.filled ? ink > 0.6 : ink < 0.3) score++;
-  }
   for (const m of MARKERS) if (squareInk(norm, w, h, H, m.cx, m.cy, m.size * 0.3) > 0.7) score++;
-  return score;           // максимум 8 + 4 = 12
+  const cells = VERSION_CODE.cells;
+  const inkOf = c => squareInk(norm, w, h, H, c.x + c.size / 2, c.y + c.size / 2, c.size * 0.3);
+  if (inkOf(cells[0]) > 0.6) score++;
+  if (inkOf(cells[cells.length - 1]) > 0.6) score++;
+  let bits = '';
+  for (const c of cells.slice(1, -1)) {
+    const ink = inkOf(c);
+    bits += ink > 0.6 ? '1' : ink < 0.3 ? '0' : '?';
+  }
+  if (!bits.includes('?')) score++;      // код читается чётко
+  return { score, version: bits.includes('?') ? null : parseInt(bits, 2) };   // максимум 4 + 2 + 1 = 7
 }
 
 // ---------- 6. Решения по кружкам ----------
@@ -307,10 +315,13 @@ export function recognize(img, { subjects = DEFAULT_SUBJECTS } = {}) {
   for (let k = 0; k < 4; k++) {
     const dst = tpl.map((_, j) => { const p = corners.q[(j + k) % 4]; return [p.x, p.y]; });
     const H = homography(tpl, dst);
-    const s = orientationScore(norm, w, h, H);
-    if (!best || s > best.s) best = { H, s, k };
+    const info = orientationInfo(norm, w, h, H);
+    if (!best || info.score > best.s) best = { H, s: info.score, k, version: info.version };
   }
-  if (best.s < 11) return { ok: false, error: 'orientation', orientationScore: best.s, ms: Date.now() - t0 };
+  if (best.s < 7) return { ok: false, error: 'orientation', orientationScore: best.s, ms: Date.now() - t0 };
+  if (best.version !== SHEET_VERSION) {
+    return { ok: false, error: 'version', sheetVersion: best.version, ms: Date.now() - t0 };
+  }
   const H = best.H;
 
   // сырая заливка всех кружков
@@ -339,14 +350,30 @@ export function recognize(img, { subjects = DEFAULT_SUBJECTS } = {}) {
   for (const s of ANSWER_SECTIONS) {
     answers[s.key] = {};
     for (const q of s.questions) {
-      const multi = q.options.length === 6;
-      const st = q.options.map(o => ({ letter: o.letter, s: score(o), c: classify(score(o)) }));
-      const marked = st.filter(x => x.c === 'filled').map(x => x.letter).join('');
-      const weak = st.filter(x => x.c === 'doubtful').map(x => x.letter).join('');
+      const st = q.options.map(o => ({ o, s: score(o), c: classify(score(o)) }));
+      const scores = st.map(x => +x.s.toFixed(2));
+      if (q.type === 'match') {
+        // сопоставление: в каждой строке 1) и 2) — ровно один кружок; ответ — две буквы («-» — пусто)
+        let marked = '', weak = '', multiple = '';
+        for (const item of [1, 2]) {
+          const row = st.filter(x => x.o.item === item);
+          const f = row.filter(x => x.c === 'filled'), d = row.filter(x => x.c === 'doubtful');
+          marked += f.length === 1 ? f[0].o.letter : '-';
+          for (const x of d) weak += `${item}${x.o.letter}`;
+          if (f.length > 1) multiple += `${item}${f.map(x => x.o.letter).join('')}`;
+        }
+        let status = marked === '--' ? 'empty' : 'ok';
+        if (weak) { status = 'check'; flags.push({ kind: 'answer', section: s.key, n: q.n, reason: 'weak', letters: weak }); }
+        else if (multiple) { status = 'check'; flags.push({ kind: 'answer', section: s.key, n: q.n, reason: 'multiple', letters: multiple }); }
+        answers[s.key][q.n] = { marked: marked === '--' ? '' : marked, weak, status, scores };
+        continue;
+      }
+      const marked = st.filter(x => x.c === 'filled').map(x => x.o.letter).join('');
+      const weak = st.filter(x => x.c === 'doubtful').map(x => x.o.letter).join('');
       let status = marked ? 'ok' : 'empty';
       if (weak) { status = 'check'; flags.push({ kind: 'answer', section: s.key, n: q.n, reason: 'weak', letters: weak }); }
-      else if (!multi && marked.length > 1) { status = 'check'; flags.push({ kind: 'answer', section: s.key, n: q.n, reason: 'multiple', letters: marked }); }
-      answers[s.key][q.n] = { marked, weak, status, scores: st.map(x => +x.s.toFixed(2)) };
+      else if (q.type !== 'multi' && marked.length > 1) { status = 'check'; flags.push({ kind: 'answer', section: s.key, n: q.n, reason: 'multiple', letters: marked }); }
+      answers[s.key][q.n] = { marked, weak, status, scores };
     }
   }
 

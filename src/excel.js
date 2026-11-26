@@ -1,6 +1,7 @@
 // Excel: ключи пробника и список учеников. Библиотека SheetJS передаётся снаружи (XLSX),
 // поэтому этот файл работает и в браузере, и в автотестах Node.
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
+import { questionType, LETTERS } from './template.js';
 
 const norm = s => String(s ?? '').toLowerCase().replace(/ё/g, 'е').replace(/[«»"'.()/\\:;,\-–—_]/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -68,16 +69,22 @@ export function parseKeysWorkbook(XLSX, wb, subjects = DEFAULT_SUBJECTS) {
       const compulsory = code in COMPULSORY;
       const maxN = compulsory ? COMPULSORY[code] : 40;
       if (!Number.isInteger(n) || n < 1 || n > maxN) { errors.push({ code: 'badNumber', ...at, value: String(rawNum), max: maxN }); continue; }
+      // цифры убираем: «1-C, 2-A» в сопоставлении → «CA»
       const a = normalizeAnswer(rawAns);
-      const multi = !compulsory && n >= 31;
-      const allowed = multi ? 'ABCDEF' : 'ABCDE';
-      if (!a || [...a].some(ch => !allowed.includes(ch)) || new Set(a).size !== a.length) {
-        errors.push({ code: 'badLetters', ...at, value: String(rawAns), allowed }); rowErr.add(`${code}:${n}`); continue;
-      }
-      if (!multi && a.length !== 1) { errors.push({ code: 'oneLetter', ...at, value: String(rawAns) }); rowErr.add(`${code}:${n}`); continue; }
+      const type = compulsory ? 'single5' : questionType('profile1', n);
+      const allowed = LETTERS[type];
+      const bad = e => { errors.push({ ...e, ...at, value: String(rawAns), allowed, type }); rowErr.add(`${code}:${n}`); };
+      if (!a || [...a].some(ch => !allowed.includes(ch))) { bad({ code: 'badLetters' }); continue; }
+      if (type === 'match') {
+        if (a.length !== 2) { bad({ code: 'matchTwo' }); continue; }
+      } else if (type === 'multi') {
+        if (new Set(a).size !== a.length) { bad({ code: 'badLetters' }); continue; }
+        if (a.length > 3) { bad({ code: 'tooMany' }); continue; }
+      } else if (a.length !== 1) { bad({ code: 'oneLetter' }); continue; }
       const target = compulsory ? k[code] : (k.subjects[code] ??= {});
       if (target[n]) { errors.push({ code: 'duplicate', ...at, n, subject: code }); continue; }
-      target[n] = { a: [...a].sort().join(''), topic };
+      // сопоставление: порядок важен (пункт 1, пункт 2); несколько ответов — по алфавиту
+      target[n] = { a: type === 'match' ? a : [...a].sort().join(''), topic };
     }
     // полнота
     for (const [code, count] of Object.entries(COMPULSORY)) {
@@ -106,14 +113,16 @@ export function keysTemplateWorkbook(XLSX, lang = 'ru', subjects = DEFAULT_SUBJE
   const help = lang === 'kk'
     ? [['Кілттерді толтыру'], [''],
        ['• Әр нұсқа — жеке парақ: «01», «02». Жаңа нұсқа үшін парақты көшіріп, атын өзгертіңіз.'],
-       ['• «Жауап» бағанына латын әріптерін жазыңыз: A, B, C, D, E.'],
-       ['• Бейіндік пәндердің 31–40 сұрақтарында бірнеше әріп болуы мүмкін: ACE. F әрпі де бар.'],
+       ['• «Жауап» бағанына латын әріптерін жазыңыз. Міндетті пәндер: A–E. Бейіндік пән 1–30: A–D.'],
+       ['• Бейіндік пән 31–35 (сәйкестендіру): екі әріп ретімен — 1) және 2) үшін, мысалы CA.'],
+       ['• Бейіндік пән 36–40: бір-үш әріп A–F, мысалы ACE.'],
        ['• Оқушылар тапсырмайтын пәндердің жолдарын бос қалдыруға болады.'],
        ['• «Тақырып» — міндетті емес, бірақ қиын тақырыптарды табуға көмектеседі.']]
     : [['Как заполнять ключи'], [''],
        ['• Каждый вариант — отдельный лист: «01», «02». Для нового варианта скопируйте лист и переименуйте.'],
-       ['• В столбец «Ответ» пишите латинские буквы: A, B, C, D, E.'],
-       ['• В вопросах 31–40 профильных предметов может быть несколько букв: ACE. Есть буква F.'],
+       ['• В столбец «Ответ» пишите латинские буквы. Обязательные блоки: A–E. Профиль 1–30: A–D.'],
+       ['• Профиль 31–35 (сопоставление): две буквы по порядку — для пункта 1) и для пункта 2), например CA.'],
+       ['• Профиль 36–40: от одной до трёх букв A–F, например ACE.'],
        ['• Строки предметов, которые никто не сдаёт, можно оставить пустыми.'],
        ['• «Тема» — необязательно, но помогает находить трудные темы.']];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(help), lang === 'kk' ? 'Нұсқаулық' : 'Инструкция');

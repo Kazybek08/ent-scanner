@@ -44,14 +44,15 @@ function fillKeys(wb, pick) {
 test('шаблон ключей: заполненный (обязательные + 2 профиля) загружается без ошибок', () => {
   const wb = fillKeys(XLSX.read(file('keys-template.xlsx')), (subj, n) => {
     if (['История Казахстана', 'Математическая грамотность', 'Грамотность чтения'].includes(subj)) return 'ABCDE'[n % 5];
-    if (subj === 'Математика' || subj === 'Физика') return n >= 31 ? 'ACE' : 'D';
+    if (subj === 'Математика' || subj === 'Физика') return n >= 36 ? 'ACE' : n >= 31 ? 'CA' : 'D';
     return undefined;
   });
   const r = parseKeysWorkbook(XLSX, wb);
   assert.deepEqual(r.errors, []);
   assert.deepEqual(Object.keys(r.keys).sort(), ['01', '02']);
   assert.deepEqual(r.summary['01'].subjects.sort(), ['math', 'physics']);
-  assert.equal(r.keys['02'].subjects.math[35].a, 'ACE');
+  assert.equal(r.keys['02'].subjects.math[35].a, 'CA');
+  assert.equal(r.keys['02'].subjects.math[40].a, 'ACE');
 });
 
 test('шаблон ключей: пустой — понятные ошибки только по обязательным блокам', () => {
@@ -69,9 +70,16 @@ test('шаблон ключей: выпадающие списки, подска
   assert.equal(ws.getCell('C2').dataValidation.type, 'list');
   assert.equal(ws.getCell('C2').protection?.locked, false, 'ответ можно вводить');
   assert.notEqual(ws.getCell('A2').protection?.locked, false, 'предмет защищён');
-  // строка с Математикой №35 — многовариантный вопрос
-  let row35;
-  ws.eachRow((r, i) => { if (r.getCell(1).value === 'Математика' && r.getCell(2).value === 35) row35 = i; });
-  assert.equal(ws.getCell(`C${row35}`).dataValidation.type, 'textLength');
+  const rowOf = (subj, n) => { let x; ws.eachRow((r, i) => { if (r.getCell(1).value === subj && r.getCell(2).value === n) x = i; }); return x; };
+  // профиль 1–30: список A–D; сопоставление: список из 16 пар; 36–40: 1–3 буквы
+  assert.deepEqual(ws.getCell(`C${rowOf('Математика', 12)}`).dataValidation.formulae, ['"A,B,C,D"']);
+  const m = ws.getCell(`C${rowOf('Математика', 33)}`).dataValidation;
+  assert.equal(m.type, 'list');
+  assert.equal(m.formulae[0].split(',').length, 16);
+  assert.ok(m.formulae[0].includes('CA'));
+  const v = ws.getCell(`C${rowOf('Математика', 38)}`).dataValidation;
+  assert.equal(v.type, 'textLength');
+  assert.deepEqual(v.formulae, [1, 3]);
+  assert.deepEqual(ws.getCell(`C${rowOf('История Казахстана', 3)}`).dataValidation.formulae, ['"A,B,C,D,E"']);
   assert.ok(String(ws.getCell('I2').value.formula).includes('готово'));
 });

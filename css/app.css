@@ -295,6 +295,10 @@ a.btn-primary { text-decoration: none; }
 .letter.wide { border-radius: 12px; aspect-ratio: auto; max-width: none; }
 .letter[aria-pressed="true"] { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
 .letters.is-edited .letter[aria-pressed="true"] { background: #7C3AED; border-color: #7C3AED; color: #fff; }
+.match-rows { display: grid; gap: 6px; }
+.letters.match-row { grid-auto-flow: row; grid-template-columns: 26px repeat(4, 1fr); align-items: center; }
+.match-label { font-weight: 700; font-size: 15px; color: var(--color-muted-foreground); text-align: right; }
+.ans-row .match-rows { gap: 2px; }
 .fix-actions { display: flex; flex-wrap: wrap; gap: 0 var(--space-3); margin: var(--space-1) 0 0 -8px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { min-height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-card); color: var(--color-foreground); font: 14px var(--font); cursor: pointer; }

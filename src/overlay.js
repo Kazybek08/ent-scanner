@@ -1,6 +1,8 @@
 // Рисует распознанные отметки поверх фото бланка.
 import { project } from './omr.js';
-import { ANSWER_SECTIONS, STUDENT_ID, VARIANT, BUBBLE_R } from './template.js';
+import { ANSWER_SECTIONS, STUDENT_ID, VARIANT, BUBBLE_R, optionCode, optionsForAnswer } from './template.js';
+
+const isMarked = (q, marked, o) => optionsForAnswer(q, marked || '').includes(o);
 
 const COLORS = {
   filled: 'rgba(15,118,110,0.95)',     // распознано как закрашенное
@@ -46,8 +48,9 @@ export function drawOverlay(ctx, res, scale = 1, eff = null) {
       if (a.status === 'check') rowBand(q);
       q.options.forEach((o, i) => {
         const v = a.scores?.[i] ?? 0;
-        if (a.marked.includes(o.letter)) circle(o.x, o.y, a.edited ? 'edited' : 'filled');
-        if (!a.edited && (a.weak.includes(o.letter) || (a.status === 'check' && v >= 0.15 && !a.marked.includes(o.letter)))) circle(o.x, o.y, 'doubt');
+        const on = isMarked(q, a.marked, o);
+        if (on) circle(o.x, o.y, a.edited ? 'edited' : 'filled');
+        if (!a.edited && (a.weak.includes(optionCode(o)) || (a.status === 'check' && v >= 0.15 && !on))) circle(o.x, o.y, 'doubt');
       });
     }
   }

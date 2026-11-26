@@ -1,47 +1,63 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scoreQuestion, scoreSheet, orderProfiles, isMulti } from '../src/scoring.js';
+import { scoreQuestion, scoreSheet, orderProfiles, isMulti, questionType, maxFor } from '../src/scoring.js';
 
 test('обычный вопрос: 1 балл только за ровно один верный кружок', () => {
-  assert.equal(scoreQuestion('C', 'C', false), 1);
-  assert.equal(scoreQuestion('A', 'C', false), 0);
-  assert.equal(scoreQuestion('', 'C', false), 0, 'пусто — 0');
-  assert.equal(scoreQuestion('AC', 'C', false), 0, 'два кружка — 0, даже если один верный');
-  assert.equal(scoreQuestion('C', undefined, false), null, 'нет ключа');
+  assert.equal(scoreQuestion('C', 'C', 'single'), 1);
+  assert.equal(scoreQuestion('A', 'C', 'single'), 0);
+  assert.equal(scoreQuestion('', 'C', 'single5'), 0, 'пусто — 0');
+  assert.equal(scoreQuestion('AC', 'C', 'single'), 0, 'два кружка — 0, даже если один верный');
+  assert.equal(scoreQuestion('C', undefined, 'single'), null, 'нет ключа');
 });
 
-test('вопросы 31–40: 2 / 1 / 0', () => {
-  assert.equal(scoreQuestion('ACE', 'ACE', true), 2, 'полностью верно');
-  assert.equal(scoreQuestion('ECA', 'ACE', true), 2, 'порядок букв не важен');
-  assert.equal(scoreQuestion('AC', 'ACE', true), 1, 'один пропущенный');
-  assert.equal(scoreQuestion('ACEF', 'ACE', true), 1, 'один лишний');
-  assert.equal(scoreQuestion('A', 'ACE', true), 0, 'два пропущенных');
-  assert.equal(scoreQuestion('ACF', 'ACE', true), 0, 'один лишний и один пропущенный = две ошибки');
-  assert.equal(scoreQuestion('', 'ACE', true), 0, 'пусто — 0');
-  assert.equal(scoreQuestion('B', 'B', true), 2, 'один верный ответ из одного');
-  assert.equal(scoreQuestion('BD', 'B', true), 1, 'при одном верном — один лишний');
-  assert.equal(scoreQuestion('', 'B', true), 0, 'пусто при одном верном — 0, а не 1');
+test('сопоставление 31–35: балл за каждую верную пару', () => {
+  assert.equal(scoreQuestion('AC', 'AC', 'match'), 2, 'обе пары');
+  assert.equal(scoreQuestion('AD', 'AC', 'match'), 1, 'первая пара');
+  assert.equal(scoreQuestion('-C', 'AC', 'match'), 1, 'первая пустая, вторая верна');
+  assert.equal(scoreQuestion('CA', 'AC', 'match'), 0, 'порядок важен: пункты перепутаны');
+  assert.equal(scoreQuestion('--', 'AC', 'match'), 0);
+  assert.equal(scoreQuestion('', 'AC', 'match'), 0);
+  assert.equal(scoreQuestion('BB', 'BB', 'match'), 2, 'один вариант может подходить обоим пунктам');
 });
 
-test('какие вопросы многовариантные', () => {
-  assert.equal(isMulti('profile1', 31), true);
-  assert.equal(isMulti('profile2', 40), true);
-  assert.equal(isMulti('profile1', 30), false);
-  assert.equal(isMulti('history', 20), false);
+test('вопросы 36–40: 2 / 1 / 0', () => {
+  assert.equal(scoreQuestion('ACE', 'ACE', 'multi'), 2, 'полностью верно');
+  assert.equal(scoreQuestion('ECA', 'ACE', 'multi'), 2, 'порядок букв не важен');
+  assert.equal(scoreQuestion('AC', 'ACE', 'multi'), 1, 'один пропущенный');
+  assert.equal(scoreQuestion('ACEF', 'ACE', 'multi'), 1, 'один лишний');
+  assert.equal(scoreQuestion('A', 'ACE', 'multi'), 0, 'два пропущенных');
+  assert.equal(scoreQuestion('ACF', 'ACE', 'multi'), 0, 'один лишний и один пропущенный = две ошибки');
+  assert.equal(scoreQuestion('', 'ACE', 'multi'), 0, 'пусто — 0');
+  assert.equal(scoreQuestion('BD', 'B', 'multi'), 1, 'при одном верном — один лишний');
+});
+
+test('типы вопросов профильного предмета', () => {
+  assert.equal(questionType('history', 20), 'single5');
+  assert.equal(questionType('profile1', 1), 'single');
+  assert.equal(questionType('profile1', 30), 'single');
+  assert.equal(questionType('profile2', 31), 'match');
+  assert.equal(questionType('profile2', 35), 'match');
+  assert.equal(questionType('profile1', 36), 'multi');
+  assert.equal(isMulti('profile1', 40), true);
+  assert.equal(isMulti('profile1', 33), false);
+  assert.equal(maxFor('profile1', 33), 2);
+  assert.equal(maxFor('profile1', 12), 1);
 });
 
 function fullKey() {
   const k = { history: {}, mathLit: {}, reading: {}, subjects: { math: {}, physics: {} } };
   for (let n = 1; n <= 20; n++) k.history[n] = { a: 'A' };
   for (let n = 1; n <= 10; n++) { k.mathLit[n] = { a: 'B' }; k.reading[n] = { a: 'C' }; }
-  for (const s of ['math', 'physics']) for (let n = 1; n <= 40; n++) k.subjects[s][n] = { a: n >= 31 ? 'AB' : 'D', topic: n === 5 ? 'Логарифмы' : '' };
+  for (const s of ['math', 'physics']) for (let n = 1; n <= 40; n++) {
+    k.subjects[s][n] = { a: n >= 36 ? 'AB' : n >= 31 ? 'CA' : 'D', topic: n === 5 ? 'Логарифмы' : '' };
+  }
   return k;
 }
 function perfectAnswers() {
   const a = { history: {}, mathLit: {}, reading: {}, profile1: {}, profile2: {} };
   for (let n = 1; n <= 20; n++) a.history[n] = 'A';
   for (let n = 1; n <= 10; n++) { a.mathLit[n] = 'B'; a.reading[n] = 'C'; }
-  for (const s of ['profile1', 'profile2']) for (let n = 1; n <= 40; n++) a[s][n] = n >= 31 ? 'AB' : 'D';
+  for (const s of ['profile1', 'profile2']) for (let n = 1; n <= 40; n++) a[s][n] = n >= 36 ? 'AB' : n >= 31 ? 'CA' : 'D';
   return a;
 }
 
@@ -59,15 +75,16 @@ test('ошибки снижают балл как положено и попад
   a.history[1] = 'B';            // −1
   a.history[2] = '';             // −1
   a.profile1[5] = 'AD';          // два кружка — −1
-  a.profile1[31] = 'A';          // одна ошибка — 1 из 2
+  a.profile1[31] = 'CB';         // сопоставление: одна пара — 1 из 2
+  a.profile1[37] = 'A';          // одна ошибка — 1 из 2
   a.profile2[40] = 'CD';         // мимо — 0 из 2
   const r = scoreSheet({ answers: a, profiles: ['math', 'physics'], key: fullKey() });
-  assert.equal(r.total, 140 - 1 - 1 - 1 - 1 - 2);
+  assert.equal(r.total, 140 - 1 - 1 - 1 - 1 - 1 - 2);
   assert.equal(r.parts.history.points, 18);
-  assert.equal(r.parts.profile1.points, 48);
+  assert.equal(r.parts.profile1.points, 47);
   assert.equal(r.parts.profile2.points, 48);
-  const w = r.parts.profile1.wrong.find(x => x.n === 5);
-  assert.equal(w.topic, 'Логарифмы');
+  assert.equal(r.parts.profile1.wrong.find(x => x.n === 5).topic, 'Логарифмы');
+  assert.deepEqual(r.parts.profile1.wrong.find(x => x.n === 31), { n: 31, marked: 'CB', key: 'CA', points: 1, max: 2, type: 'match', topic: '' });
 });
 
 test('нет ключа по предмету — балл неполный, а не ноль', () => {
