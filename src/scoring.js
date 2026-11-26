@@ -2,6 +2,8 @@
 // Формат профильного предмета (бланк v3, по пробникам центра):
 //   1–30 — один ответ (1 балл); 31–35 — сопоставление, 2 пары (2/1/0);
 //   36–40 — один–три верных из шести (2 — всё верно, 1 — одна ошибка, иначе 0).
+//   Ошибка — неверная буква вместо верной, лишняя или пропущенная: ключ ACE, отмечено ACF — одна ошибка (1 балл),
+//   AFD или BDF — две-три ошибки (0).
 import { DEFAULT_SUBJECTS } from './subjects.js';
 import { questionType } from './template.js';
 
@@ -27,9 +29,11 @@ export function scoreQuestion(marked, key, type) {
   if (type !== 'multi') return marked.length === 1 && marked === key ? 1 : 0;
   if (!marked) return 0;
   const m = new Set(marked), k = new Set(key);
-  let errors = 0;
-  for (const x of m) if (!k.has(x)) errors++;
-  for (const x of k) if (!m.has(x)) errors++;
+  let extra = 0, missed = 0;
+  for (const x of m) if (!k.has(x)) extra++;
+  for (const x of k) if (!m.has(x)) missed++;
+  // неверная буква вместо верной (лишняя + пропущенная в паре) — это одна ошибка, а не две
+  const errors = Math.max(extra, missed);
   return errors === 0 ? 2 : errors === 1 ? 1 : 0;
 }
 

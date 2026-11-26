@@ -26,7 +26,10 @@ test('вопросы 36–40: 2 / 1 / 0', () => {
   assert.equal(scoreQuestion('AC', 'ACE', 'multi'), 1, 'один пропущенный');
   assert.equal(scoreQuestion('ACEF', 'ACE', 'multi'), 1, 'один лишний');
   assert.equal(scoreQuestion('A', 'ACE', 'multi'), 0, 'два пропущенных');
-  assert.equal(scoreQuestion('ACF', 'ACE', 'multi'), 0, 'один лишний и один пропущенный = две ошибки');
+  assert.equal(scoreQuestion('ACF', 'ACE', 'multi'), 1, 'из трёх отмеченных одна неверная — 1 балл');
+  assert.equal(scoreQuestion('AFD', 'ACE', 'multi'), 0, 'из трёх отмеченных две неверные — 0');
+  assert.equal(scoreQuestion('BDF', 'ACE', 'multi'), 0, 'все три неверные — 0');
+  assert.equal(scoreQuestion('AF', 'ACE', 'multi'), 0, 'одна неверная и ещё одна пропущена — 0');
   assert.equal(scoreQuestion('', 'ACE', 'multi'), 0, 'пусто — 0');
   assert.equal(scoreQuestion('BD', 'B', 'multi'), 1, 'при одном верном — один лишний');
 });
