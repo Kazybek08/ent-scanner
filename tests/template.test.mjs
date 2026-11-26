@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PAGE, BUBBLE_R, MARKERS, ANSWER_SECTIONS, SUBJECT_BUBBLES, STUDENT_ID, VARIANT, allBubbles, SHEET_VERSION, VERSION_CODE, optionsForAnswer,
+  PAGE, BUBBLE_R, MARKERS, ANSWER_SECTIONS, SUBJECT_BUBBLES, SUBJECT_ROWS, STUDENT_ID, VARIANT, allBubbles, SHEET_VERSION, VERSION_CODE, optionsForAnswer,
 } from '../src/template.js';
 
-test('бланк версии 3, код версии внизу совпадает', () => {
-  assert.equal(SHEET_VERSION, 3);
+test('бланк версии 4, код версии внизу совпадает', () => {
+  assert.equal(SHEET_VERSION, 4);
   const bits = VERSION_CODE.cells.slice(1, 7).map(c => (c.filled ? '1' : '0')).join('');
-  assert.equal(parseInt(bits, 2), 3);
+  assert.equal(parseInt(bits, 2), 4);
 });
 
 test('в бланке 120 вопросов по блокам 20/10/10/40/40', () => {
@@ -39,7 +39,7 @@ test('номера вопросов идут подряд с 1', () => {
 test('ID — 4 колонки, вариант — 2, предметов — 12', () => {
   assert.equal(STUDENT_ID.columns.length, 4);
   assert.equal(VARIANT.columns.length, 2);
-  assert.equal(SUBJECT_BUBBLES.length, 12);
+  assert.equal(SUBJECT_BUBBLES.length, 24, 'у каждого предмета кружки «1» и «2»');
 });
 
 test('кружки не меньше 3,3 мм', () => {
@@ -70,4 +70,12 @@ test('профили не залезают друг на друга: права�
   const maxX = key => Math.max(...ANSWER_SECTIONS.find(s => s.key === key).questions.filter(q => q.n > 20).flatMap(q => q.options.map(o => o.x)));
   const minX = key => Math.min(...ANSWER_SECTIONS.find(s => s.key === key).questions.filter(q => q.n > 20).flatMap(q => q.options.map(o => o.x)));
   assert.ok(maxX('profile1') + BUBBLE_R + 3 < minX('profile2') - 10, `${maxX('profile1')} / ${minX('profile2')}`);
+});
+
+test('кружки «1» и «2» у предметов не налезают друг на друга и на подписи', () => {
+  for (const r of SUBJECT_ROWS) {
+    const [a, b] = r.options;
+    assert.ok(b.x - a.x >= BUBBLE_R * 2 + 1, 'промежуток между «1» и «2»');
+    assert.ok(r.labelX - b.x >= BUBBLE_R + 1, 'подпись правее кружка «2»');
+  }
 });

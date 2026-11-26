@@ -3,7 +3,7 @@
 // Работает и в браузере, и в Node (для проверки): jsPDF и шрифты передаются снаружи.
 
 import {
-  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECTS_AREA, SUBJECT_BUBBLES,
+  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECTS_AREA, SUBJECT_ROWS,
   INSTRUCTION_BOX, ANSWER_HEADERS, ANSWER_SECTIONS, VERSION_CODE, SHEET_VERSION, LOWER_PARTS, LOWER_BAND, ROW_PITCH,
 } from './template.js';
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
@@ -22,8 +22,8 @@ export const SHEET_TEXT = {
   sign: 'Қолы / Подпись',
   idKk: 'Оқушы ID', idRu: 'ID ученика',
   varKk: 'Нұсқа', varRu: 'Вариант',
-  subjKk: 'Бейіндік пәндер — тек 2 пәнді белгілеңіз',
-  subjRu: 'Профильные предметы — отметьте ровно 2',
+  subjKk: 'Бейіндік пәндер: 1-ші пәнге «1», 2-ші пәнге «2» бояңыз',
+  subjRu: 'Профильные предметы: у первого закрасьте «1», у второго — «2»',
   instrTitle: 'Нұсқаулық / Инструкция',
   instrKk: 'Дөңгелекті қара немесе көк қаламмен толық бояңыз. Бір сұраққа — бір жауап. Бейіндік пән: 31–35 сәйкестендіру — 1) және 2) жолдарының әрқайсысында бір дөңгелек; 36–40 — бір, екі немесе үш жауап. Түзетуге болмайды: қателессеңіз, жаңа бланк сұраңыз.',
   instrRu: 'Закрашивайте кружок полностью чёрной или синей ручкой. Один ответ на вопрос. Профильный предмет: 31–35 сопоставление — в строке 1) и в строке 2) по одному кружку; 36–40 — один, два или три ответа. Исправлять нельзя: при ошибке попросите новый бланк.',
@@ -99,12 +99,15 @@ export function buildSheetPdf({ jsPDF, fonts, logo, subjects = DEFAULT_SUBJECTS 
   doc.text(SHEET_TEXT.subjKk, SUBJECTS_AREA.x, SUBJECTS_AREA.labelY);
   font(6.5);
   doc.text(SHEET_TEXT.subjRu, SUBJECTS_AREA.x, SUBJECTS_AREA.labelY + 2.6);
-  for (const b of SUBJECT_BUBBLES) {
-    const s = subjects[b.index];
-    bubble(doc, b.x, b.y, '');
+  for (const r of SUBJECT_ROWS) {
+    const s = subjects[r.index];
+    for (const o of r.options) bubble(doc, o.x, o.y, String(o.slot));
     font(6.8);
     const label = !s ? '' : s.kk === s.ru ? s.kk : `${s.kk} / ${s.ru}`;
-    doc.text(label, b.x + BUBBLE_R + 1.4, b.y, { baseline: 'middle' });
+    // длинное название — шрифт поменьше, чтобы не залезть на соседнюю колонку
+    const room = (r.index < 6 ? SUBJECT_ROWS[6].options[0].x - BUBBLE_R - 1.5 : SUBJECTS_AREA.right) - r.labelX;
+    if (doc.getTextWidth(label) > room) doc.setFontSize(6.8 * room / doc.getTextWidth(label));
+    doc.text(label, r.labelX, r.y, { baseline: 'middle' });
   }
 
   // --- Инструкция ---

@@ -5,7 +5,10 @@
 
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
 
-export const SHEET_VERSION = 3;
+export const SHEET_VERSION = 4;
+// Какие версии бланка приложение читает. v3 отличается только блоком предметов
+// (один кружок на предмет, порядок профилей — из настроек), ответы расположены так же.
+export const READABLE_VERSIONS = [3, 4];
 export const PAGE = { w: 210, h: 297 };
 
 export const BUBBLE_R = 1.8;        // радиус кружка: диаметр 3,6 мм (ТЗ: не меньше 3,3)
@@ -45,11 +48,22 @@ export const STUDENT_ID = { x: LEFT, labelY: 46.5, columns: digitColumns(LEFT, 4
 export const VARIANT    = { x: 47,   labelY: 46.5, columns: digitColumns(47, 2) };
 
 // ---------- Профильные предметы ----------
-const SUBJ = { x0: 68.5, x1: 130.5, top: 55, pitch: 4.4 };
+// v4: у каждого предмета два кружка — «1» (это Профиль 1) и «2» (Профиль 2).
+const SUBJ = { x0: 68.5, x1: 130.5, top: 55, pitch: 4.4, slotPitch: 5.4 };
 export const SUBJECTS_AREA = { x: 66, labelY: 46.5, right: 193 };
-export const SUBJECT_BUBBLES = DEFAULT_SUBJECTS.map((s, i) => ({
-  index: i,
-  code: s.code,
+export const SUBJECT_ROWS = DEFAULT_SUBJECTS.map((s, i) => {
+  const x = i < 6 ? SUBJ.x0 : SUBJ.x1;
+  const y = SUBJ.top + (i % 6) * SUBJ.pitch;
+  return {
+    index: i, code: s.code, y,
+    labelX: x + SUBJ.slotPitch + BUBBLE_R + 1.4,
+    options: [1, 2].map(slot => ({ slot, index: i, code: s.code, x: x + (slot - 1) * SUBJ.slotPitch, y })),
+  };
+});
+export const SUBJECT_BUBBLES = SUBJECT_ROWS.flatMap(r => r.options);
+// v3 (для чтения уже напечатанных бланков): один кружок на предмет
+export const SUBJECT_BUBBLES_V3 = DEFAULT_SUBJECTS.map((s, i) => ({
+  index: i, code: s.code,
   x: i < 6 ? SUBJ.x0 : SUBJ.x1,
   y: SUBJ.top + (i % 6) * SUBJ.pitch,
 }));
@@ -170,7 +184,7 @@ export function allBubbles() {
   const list = [];
   STUDENT_ID.columns.forEach((c, i) => c.bubbles.forEach(b => list.push({ group: `id${i}`, ...b })));
   VARIANT.columns.forEach((c, i) => c.bubbles.forEach(b => list.push({ group: `var${i}`, ...b })));
-  SUBJECT_BUBBLES.forEach(b => list.push({ group: 'subject', ...b }));
+  SUBJECT_BUBBLES.forEach(b => list.push({ group: `subject${b.slot}`, ...b }));
   ANSWER_SECTIONS.forEach(s => s.questions.forEach(q =>
     q.options.forEach(o => list.push({ group: `${s.key}:${q.n}`, ...o }))));
   return list;

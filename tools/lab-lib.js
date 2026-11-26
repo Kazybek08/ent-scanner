@@ -1,7 +1,7 @@
 // Лаборатория распознавания (только для разработки, в приложение не входит).
 // Делает «фото» НАСТОЯЩЕГО бланка из out/blank-v<версия>.pdf с закрашенными ответами.
 import * as pdfjs from '../vendor/pdfjs/pdf.min.mjs';
-import { STUDENT_ID, VARIANT, SUBJECT_BUBBLES, ANSWER_SECTIONS, PAGE, SHEET_VERSION, LETTERS, optionsForAnswer, optionCode } from '../src/template.js';
+import { STUDENT_ID, VARIANT, SUBJECT_ROWS, ANSWER_SECTIONS, PAGE, SHEET_VERSION, LETTERS, optionsForAnswer, optionCode } from '../src/template.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).href;
 
@@ -72,7 +72,8 @@ export async function makePhoto({ answers, id, variant, subjects, faint = [] }, 
     sx.fillStyle = keep;
   }
   [...variant].forEach((d, i) => { const b = VARIANT.columns[i].bubbles[+d]; dot(b.x, b.y); });
-  subjects.forEach(s => dot(SUBJECT_BUBBLES[s].x, SUBJECT_BUBBLES[s].y));
+  // subjects = [профиль 1, профиль 2] → кружки «1» и «2»
+  subjects.forEach((s, i) => { const o = SUBJECT_ROWS[s].options[i]; dot(o.x, o.y); });
   for (const sec of ANSWER_SECTIONS) for (const q of sec.questions)
     for (const o of optionsForAnswer(q, answers[sec.key]?.[q.n] ?? '')) dot(o.x, o.y);
 
@@ -110,5 +111,7 @@ export function compare(res, sheet) {
   }
   if (res.studentId !== sheet.id) wrong.push(`id ${res.studentIdRaw}≠${sheet.id}`);
   if (res.variant !== sheet.variant) wrong.push(`variant ${res.variantRaw}≠${sheet.variant}`);
+  const wantSubj = sheet.subjects.map(i => SUBJECT_ROWS[i].code).join(',');
+  if (res.subjects.join(',') !== wantSubj) wrong.push(`subjects ${res.subjects}≠${wantSubj}`);
   return { ok: true, wrong, flags: res.flags.length, ms: res.ms };
 }

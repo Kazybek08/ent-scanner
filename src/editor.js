@@ -144,7 +144,11 @@ function flagTitle(f) {
   switch (f.kind) {
     case 'answer': return t(`flag.answer.${f.reason}`, { section: sec(f.section), n: f.n, letters: f.letters });
     case 'id': case 'variant': return t(`flag.${f.kind}`, { col: f.column + 1, reason: t(`reason.${f.reason}`) });
-    case 'subjects': return f.reason === 'weak' ? t('flag.subjects.weak') : t('flag.subjects', { count: f.count });
+    case 'subjects':
+      if (f.reason === 'weak') return t('flag.subjects.weak');
+      if (f.reason === 'same') return t('flag.subjects.same');
+      if (f.reason === 'slots') return t('flag.subjects.slots', { p1: f.p1, p2: f.p2 });
+      return t('flag.subjects', { count: f.count });
     case 'unknownStudent': return t('flag.unknownStudent', { id: f.id });
     case 'duplicate': return t('flag.duplicate', { id: f.id });
     case 'noKeyVariant': return t('flag.noKeyVariant', { variant: f.variant });
@@ -247,21 +251,22 @@ function render() {
   // предметы
   const subjFlag = ev.flags.find(f => f.kind === 'subjects') || recFlags.find(f => f.kind === 'subjects');
   if (subjFlag || S.draft.subjects !== undefined) {
-    const picked = S.subjPick ?? [...(eff.subjects ?? [])];
+    // порядок нажатия = порядок профилей: первый выбранный — «Профиль 1», второй — «Профиль 2»
+    const picked = S.subjPick ?? [...(ev.profiles ?? eff.subjects ?? [])];
     const ok = picked.length === 2;
+    const pick = p => { S.subjPick = p; if (p.length === 2) { S.draft.subjects = p; S.dirty = true; } render(); };
     cards.append(el('div', { class: `fix-card${S.draft.subjects !== undefined && !ev.flags.some(f => f.kind === 'subjects') ? ' done' : ''}` },
       el('div', { class: 'fix-title', text: t('edit.subjectsTitle') }),
-      el('div', { class: 'fix-sub', text: ok ? (subjFlag ? flagTitle(subjFlag) : t('edit.fixed')) : t('edit.pickTwo') }),
+      el('div', { class: 'fix-sub', text: ok ? (S.draft.subjects !== undefined ? t('edit.fixed') : subjFlag ? flagTitle(subjFlag) : t('edit.fixed')) : t('edit.pickTwo') }),
       crop('subj', { x0: 64, y0: 51.5, x1: 193, y1: 79 }, 5),
-      el('div', { class: 'chips' }, DEFAULT_SUBJECTS.map(s => el('button', { type: 'button', class: 'chip', 'aria-pressed': String(picked.includes(s.code)), text: s[getLang()],
-        onclick: () => {
-          const p = [...picked];
-          const i = p.indexOf(s.code);
-          if (i >= 0) p.splice(i, 1); else p.push(s.code);
-          S.subjPick = p;
-          if (p.length === 2) { S.draft.subjects = p; S.dirty = true; }
-          render();
-        } }))),
+      el('div', { class: 'chips' }, DEFAULT_SUBJECTS.map(s => {
+        const i = picked.indexOf(s.code);
+        return el('button', { type: 'button', class: 'chip', 'aria-pressed': String(i >= 0), text: i >= 0 ? `${i + 1} · ${s[getLang()]}` : s[getLang()],
+          onclick: () => { const p = [...picked]; if (i >= 0) p.splice(i, 1); else if (p.length < 2) p.push(s.code); else return; pick(p); } });
+      })),
+      ok ? el('div', { class: 'fix-actions' },
+        el('div', { class: 'fix-sub', text: t('edit.profileOrder', { p1: subjectLabel(picked[0]), p2: subjectLabel(picked[1]) }) }),
+        el('button', { type: 'button', class: 'btn-link', text: t('edit.swapProfiles'), onclick: () => pick([picked[1], picked[0]]) })) : null,
     ));
   }
   // информационные: нет ключа

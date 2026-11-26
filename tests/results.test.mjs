@@ -59,9 +59,17 @@ test('дубль ID считается по исправленным значе�
 test('смена предметов меняет профили, смена варианта без ключа — предупреждение', () => {
   const r = rec({ flags: [{ kind: 'subjects', count: 3, reason: 'count' }], edits: { studentId: '0001', subjects: ['physics', 'math'], variant: '02', answers: { history: { 5: 'A' } } } });
   const ev = evaluate(r, ctx([r]));
-  assert.deepEqual(ev.profiles, ['math', 'physics']);
+  assert.deepEqual(ev.profiles, ['physics', 'math'], 'порядок, выбранный оператором, сохраняется');
   assert.deepEqual(ev.flags.map(f => f.kind), ['noKeyVariant']);
   assert.equal(ev.score, null);
+});
+
+test('бланк v4: порядок профилей берётся с бланка, а не из настроек', () => {
+  const v4 = rec({ subjects: ['physics', 'math'], subjectsOrdered: true });
+  assert.deepEqual(evaluate(v4, ctx([v4])).profiles, ['physics', 'math']);
+  const v3 = rec({ subjects: ['physics', 'math'] });
+  assert.deepEqual(evaluate(v3, ctx([v3])).profiles, ['math', 'physics'], 'v3 — по списку предметов');
+  assert.deepEqual(evaluate(v3, { ...ctx([v3]), combos: [['physics', 'math']] }).profiles, ['physics', 'math'], 'v3 — по парам из настроек');
 });
 
 test('слияние исправлений не теряет прошлые правки', () => {

@@ -64,7 +64,7 @@ async function handle(testId, canvas, label) {
     ok: res.ok, error: res.error ?? null,
     studentId: res.studentId ?? null, studentIdRaw: res.studentIdRaw ?? null,
     variant: res.variant ?? null, variantRaw: res.variantRaw ?? null,
-    subjects: res.subjects ?? [],
+    subjects: res.subjects ?? [], subjectsOrdered: !!res.subjectsOrdered, sheetVersion: res.sheetVersion ?? null,
     answers: res.answers ?? {}, flags: res.flags ?? [], warnings: res.warnings ?? [], marks: res.marks ?? [],
     H: res.H ?? null, photo: photo.blob, photoScale: photo.scale,
   };

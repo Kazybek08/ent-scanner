@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { recognize } from '../src/omr.js';
 import { synthPhoto, buildMarks, randomAnswers, rng } from './synth.mjs';
+import { SUBJECT_ROWS } from '../src/template.js';
 
 function expectSame(res, answers, label) {
   assert.ok(res.ok, `${label}: не распознан (${res.error})`);
@@ -20,14 +21,17 @@ test('10 случайных бланков с перспективой, тень
     const answers = randomAnswers(R);
     const id = String(1 + ((R() * 9998) | 0)).padStart(4, '0');
     const variant = R() < 0.5 ? '01' : '02';
-    const subjects = [(R() * 6) | 0, 6 + ((R() * 6) | 0)];
+    const pair = [(R() * 6) | 0, 6 + ((R() * 6) | 0)];
+    const subjects = seed % 2 ? pair : [pair[1], pair[0]];      // профиль 1 бывает и справа
+    const want = subjects.map(i => SUBJECT_ROWS[i].code);
     const img = synthPhoto({ marks: buildMarks({ id, variant, subjects, answers }), seed });
     const res = recognize(img);
     times.push(res.ms);
     expectSame(res, answers, `бланк ${seed}`);
     assert.equal(res.studentId, id);
     assert.equal(res.variant, variant);
-    assert.equal(res.subjects.length, 2);
+    assert.deepEqual(res.subjects, want, 'профиль 1 и профиль 2 по кружкам «1» и «2»');
+    assert.equal(res.subjectsOrdered, true);
     assert.equal(res.flags.length, 0, JSON.stringify(res.flags));
   }
   console.log('время распознавания, мс:', times.join(', '));
@@ -74,7 +78,33 @@ test('сопоставление: два кружка в одной строке
   assert.ok(res.flags.some(f => f.kind === 'answer' && f.section === 'profile2' && f.n === 34 && f.reason === 'multiple'));
 });
 
-test('старый бланк v2 не читается по разметке v3 — понятная ошибка', () => {
+test('старый бланк v3 (один кружок на предмет) по-прежнему читается', () => {
+  const answers = randomAnswers(rng(31));
+  const res = recognize(synthPhoto({ marks: buildMarks({ id: '0777', subjects: [8, 2], answers, sheet: 3 }), seed: 14, version: 3 }));
+  expectSame(res, answers, 'v3');
+  assert.equal(res.sheetVersion, 3);
+  assert.equal(res.subjectsOrdered, false, 'порядок для v3 — из настроек');
+  assert.deepEqual([...res.subjects].sort(), [SUBJECT_ROWS[8].code, SUBJECT_ROWS[2].code].sort());
+  assert.equal(res.flags.length, 0, JSON.stringify(res.flags));
+});
+
+test('профили: неясные отметки «1»/«2» подсвечиваются', () => {
+  const cases = [
+    { m: [[3, 1]], reason: 'slots', note: 'нет «2»' },
+    { m: [[3, 1], [4, 1], [9, 2]], reason: 'slots', note: 'две «1»' },
+    { m: [[3, 1], [3, 2]], reason: 'same', note: 'оба кружка у одного предмета' },
+    { m: [], reason: 'slots', note: 'ничего не отмечено' },
+  ];
+  cases.forEach(({ m, reason, note }, i) => {
+    const res = recognize(synthPhoto({ marks: buildMarks({ subjectMarks: m }), seed: 20 + i }));
+    assert.ok(res.ok, note);
+    const f = res.flags.find(f => f.kind === 'subjects');
+    assert.ok(f, `${note}: должна быть подсветка`);
+    assert.equal(f.reason, reason, note);
+  });
+});
+
+test('старый бланк v2 не читается — понятная ошибка', () => {
   const res = recognize(synthPhoto({ marks: buildMarks({}), seed: 13, version: 2 }));
   assert.equal(res.ok, false);
   assert.equal(res.error, 'version');
@@ -100,7 +130,7 @@ test('сомнительные отметки подсвечиваются, а �
 });
 
 test('ошибки в ID и предметах подсвечиваются', () => {
-  const marks = buildMarks({ id: '0012', subjects: [0, 1, 2] });
+  const marks = buildMarks({ id: '0012', subjectMarks: [[0, 1], [1, 2], [2, 2]] });
   const res = recognize(synthPhoto({ marks, seed: 8 }));
   assert.ok(res.flags.some(f => f.kind === 'subjects'), 'три предмета');
   const noId = recognize(synthPhoto({ marks: buildMarks({ id: '0012' }).slice(1), seed: 9 }));

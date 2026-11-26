@@ -4,7 +4,7 @@
 // Работает и в браузере, и в Node (для автотестов).
 
 import {
-  MARKERS, BUBBLE_R, STUDENT_ID, VARIANT, SUBJECT_BUBBLES, ANSWER_SECTIONS, VERSION_CODE, SHEET_VERSION,
+  MARKERS, BUBBLE_R, STUDENT_ID, VARIANT, SUBJECT_ROWS, SUBJECT_BUBBLES_V3, ANSWER_SECTIONS, VERSION_CODE, READABLE_VERSIONS,
 } from './template.js';
 import { DEFAULT_SUBJECTS } from './subjects.js';
 
@@ -296,6 +296,38 @@ function digitsFrom(columns, score, kind, flags, marks) {
 }
 
 /**
+ * Предметы на бланке v4: у каждого предмета кружки «1» и «2».
+ * Профиль 1 — предмет с закрашенной «1», Профиль 2 — с «2». Любая неясность — подсветка.
+ */
+function readSubjects(score, subjects, marks) {
+  const code = r => subjects[r.index]?.code ?? String(r.index);
+  const rows = SUBJECT_ROWS.map(r => ({ r, c: r.options.map(o => classify(score(o))) }));
+  for (const { r, c } of rows) r.options.forEach((o, i) => { if (c[i] !== 'empty') marks.push({ x: o.x, y: o.y, c: c[i] }); });
+  const weak = rows.some(x => x.c.includes('doubtful'));
+  const p1 = rows.filter(x => x.c[0] === 'filled'), p2 = rows.filter(x => x.c[1] === 'filled');
+  const same = p1.length === 1 && p2.length === 1 && p1[0] === p2[0];
+  const good = p1.length === 1 && p2.length === 1 && !same;
+  // что удалось понять — по порядку слотов, без повторов (для подсказки в редакторе)
+  const codes = good ? [code(p1[0].r), code(p2[0].r)]
+    : [...new Set([...p1, ...p2].map(x => code(x.r)))];
+  let flag = null;
+  if (weak) flag = { kind: 'subjects', reason: 'weak', count: codes.length };
+  else if (same) flag = { kind: 'subjects', reason: 'same', count: 1 };
+  else if (!good) flag = { kind: 'subjects', reason: 'slots', p1: p1.length, p2: p2.length, count: codes.length };
+  return { codes, ordered: true, flag };
+}
+
+/** Предметы на бланке v3: один кружок на предмет, отмечено ровно 2; порядок — из настроек. */
+function readSubjectsV3(score, subjects, marks) {
+  const st = SUBJECT_BUBBLES_V3.map(b => ({ b, c: classify(score(b)) }));
+  for (const s of st) if (s.c !== 'empty') marks.push({ x: s.b.x, y: s.b.y, c: s.c });
+  const codes = st.filter(s => s.c === 'filled').map(s => subjects[s.b.index]?.code ?? String(s.b.index));
+  const weak = st.some(s => s.c === 'doubtful');
+  const flag = codes.length !== 2 || weak ? { kind: 'subjects', count: codes.length, reason: weak ? 'weak' : 'count' } : null;
+  return { codes, ordered: false, flag };
+}
+
+/**
  * Распознаёт бланк.
  * @param {{width:number,height:number,data?:Uint8ClampedArray,gray?:Uint8Array}} img  RGBA (ImageData) или яркость
  * @returns {object} результат: ok, error, studentId, variant, subjects, answers, flags, scores, H
@@ -319,7 +351,7 @@ export function recognize(img, { subjects = DEFAULT_SUBJECTS } = {}) {
     if (!best || info.score > best.s) best = { H, s: info.score, k, version: info.version };
   }
   if (best.s < 7) return { ok: false, error: 'orientation', orientationScore: best.s, ms: Date.now() - t0 };
-  if (best.version !== SHEET_VERSION) {
+  if (!READABLE_VERSIONS.includes(best.version)) {
     return { ok: false, error: 'version', sheetVersion: best.version, ms: Date.now() - t0 };
   }
   const H = best.H;
@@ -339,12 +371,9 @@ export function recognize(img, { subjects = DEFAULT_SUBJECTS } = {}) {
   const id = digitsFrom(STUDENT_ID.columns, score, 'id', flags, marks);
   const variant = digitsFrom(VARIANT.columns, score, 'variant', flags, marks);
 
-  const subjStates = SUBJECT_BUBBLES.map(b => ({ b, c: classify(score(b)) }));
-  for (const s of subjStates) if (s.c !== 'empty') marks.push({ x: s.b.x, y: s.b.y, c: s.c });
-  const chosen = subjStates.filter(s => s.c === 'filled').map(s => subjects[s.b.index]?.code ?? String(s.b.index));
-  if (chosen.length !== 2 || subjStates.some(s => s.c === 'doubtful')) {
-    flags.push({ kind: 'subjects', count: chosen.length, reason: subjStates.some(s => s.c === 'doubtful') ? 'weak' : 'count' });
-  }
+  const subj = best.version >= 4 ? readSubjects(score, subjects, marks) : readSubjectsV3(score, subjects, marks);
+  if (subj.flag) flags.push(subj.flag);
+  const chosen = subj.codes;
 
   const answers = {};
   for (const s of ANSWER_SECTIONS) {
@@ -386,6 +415,8 @@ export function recognize(img, { subjects = DEFAULT_SUBJECTS } = {}) {
     studentId: id.ok ? id.value : null, studentIdRaw: id.value,
     variant: variant.ok ? variant.value : null, variantRaw: variant.value,
     subjects: chosen,
+    subjectsOrdered: subj.ordered,        // true — порядок [профиль 1, профиль 2] взят с бланка (v4)
+    sheetVersion: best.version,
     answers, flags, warnings, marks,
     base: +base.toFixed(3), pxPerMm: +corners.pxPerMm.toFixed(2),
     corners: corners.q.map(p => [Math.round(p.x), Math.round(p.y), Math.round(p.side)]),

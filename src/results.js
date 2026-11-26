@@ -32,6 +32,8 @@ export function effective(rec) {
     variant: e.variant !== undefined ? e.variant : rec.variant,
     variantRaw: e.variant !== undefined ? e.variant : rec.variantRaw,
     subjects: e.subjects !== undefined ? e.subjects : rec.subjects,
+    // порядок [профиль 1, профиль 2] известен: с бланка v4 или выбран оператором в редакторе
+    subjectsOrdered: e.subjects !== undefined ? e.subjectsOrdered !== false : !!rec.subjectsOrdered,
     answers, flags,
     edited: !!rec.edits && Object.keys(rec.edits).length > 0,
   };
@@ -53,7 +55,8 @@ export function evaluate(rec, { test, students, results, combos = [] }) {
     const others = results.filter(r => r.id !== rec.id && r.ok && effective(r).studentId === eff.studentId);
     if (others.length) out.flags.push({ kind: 'duplicate', id: eff.studentId, others: others.map(r => r.id) });
   }
-  out.profiles = eff.subjects?.length === 2 ? orderProfiles(eff.subjects, combos, DEFAULT_SUBJECTS) : null;
+  out.profiles = eff.subjects?.length !== 2 ? null
+    : eff.subjectsOrdered ? [...eff.subjects] : orderProfiles(eff.subjects, combos, DEFAULT_SUBJECTS);
   const key = eff.variant ? test?.keys?.[eff.variant] : null;
   if (eff.variant && !key && Object.keys(test?.keys ?? {}).length) out.flags.push({ kind: 'noKeyVariant', variant: eff.variant });
   if (key) {
