@@ -12,12 +12,17 @@ const SECTION_ALIASES = {
   reading: ['грамотность чтения', 'оқу сауаттылығы', 'читательская грамотность', 'оку сауаттылыгы'],
 };
 
+const SUBJECT_ALIASES = {
+  law: ['чоп', 'человек общество право', 'адам қоғам құқық', 'адам қоғам құқық негіздері', 'основы права', 'құқық негіздері'],
+};
+
 export function subjectCode(name, subjects = DEFAULT_SUBJECTS) {
   const n = norm(name);
   if (!n) return null;
   for (const [code, list] of Object.entries(SECTION_ALIASES)) if (list.some(a => norm(a) === n)) return code;
   for (const s of SECTIONS) if (norm(s.kk) === n || norm(s.ru) === n) return s.key;
   for (const s of subjects) if (norm(s.kk) === n || norm(s.ru) === n || s.code.toLowerCase() === n) return s.code;
+  for (const [code, list] of Object.entries(SUBJECT_ALIASES)) if (list.some(a => norm(a) === n) && subjects.some(s => s.code === code)) return code;
   return null;
 }
 

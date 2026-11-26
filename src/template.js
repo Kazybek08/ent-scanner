@@ -3,12 +3,13 @@
 // По этому файлу строится PDF для печати И идёт распознавание фото.
 // Если что-то двигаете на бланке — меняйте только здесь.
 
-import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
+import { DEFAULT_SUBJECTS, SECTIONS, COMBOS } from './subjects.js';
 
-export const SHEET_VERSION = 4;
-// Какие версии бланка приложение читает. v3 отличается только блоком предметов
-// (один кружок на предмет, порядок профилей — из настроек), ответы расположены так же.
-export const READABLE_VERSIONS = [3, 4];
+export const SHEET_VERSION = 5;
+// Какие версии бланка приложение читает. Версии отличаются только блоком предметов, ответы расположены так же:
+// v3 — один кружок на предмет (порядок профилей из настроек), v4 — кружки «1»/«2» у предметов,
+// v5 — один кружок на комбинацию предметов (порядок закреплён в COMBOS).
+export const READABLE_VERSIONS = [3, 4, 5];
 export const PAGE = { w: 210, h: 297 };
 
 export const BUBBLE_R = 1.8;        // радиус кружка: диаметр 3,6 мм (ТЗ: не меньше 3,3)
@@ -48,10 +49,19 @@ export const STUDENT_ID = { x: LEFT, labelY: 46.5, columns: digitColumns(LEFT, 4
 export const VARIANT    = { x: 47,   labelY: 46.5, columns: digitColumns(47, 2) };
 
 // ---------- Профильные предметы ----------
-// v4: у каждого предмета два кружка — «1» (это Профиль 1) и «2» (Профиль 2).
-const SUBJ = { x0: 68.5, x1: 130.5, top: 55, pitch: 4.4, slotPitch: 5.4 };
 export const SUBJECTS_AREA = { x: 66, labelY: 46.5, right: 193 };
-export const SUBJECT_ROWS = DEFAULT_SUBJECTS.map((s, i) => {
+// v5: 13 строк-комбинаций (12 пар + «Творчество»), один кружок на строку: 7 слева, 6 справа.
+const COMBO = { x0: 68.5, x1: 130.5, top: 51.8, pitch: 4.25, perCol: 7 };
+export const COMBO_BUBBLES = COMBOS.map((c, i) => {
+  const col = i < COMBO.perCol ? 0 : 1;
+  const x = col ? COMBO.x1 : COMBO.x0;
+  return { index: i, ...c, x, y: COMBO.top + (i % COMBO.perCol) * COMBO.pitch, labelX: x + BUBBLE_R + 1.6, col };
+});
+
+// v4 (для чтения уже напечатанных бланков): у каждого из 12 предметов два кружка — «1» (Профиль 1) и «2» (Профиль 2).
+const LEGACY_SUBJECTS = DEFAULT_SUBJECTS.slice(0, 12);
+const SUBJ = { x0: 68.5, x1: 130.5, top: 55, pitch: 4.4, slotPitch: 5.4 };
+export const SUBJECT_ROWS = LEGACY_SUBJECTS.map((s, i) => {
   const x = i < 6 ? SUBJ.x0 : SUBJ.x1;
   const y = SUBJ.top + (i % 6) * SUBJ.pitch;
   return {
@@ -61,12 +71,11 @@ export const SUBJECT_ROWS = DEFAULT_SUBJECTS.map((s, i) => {
   };
 });
 export const SUBJECT_BUBBLES = SUBJECT_ROWS.flatMap(r => r.options);
-// «Шығармашылық / Творчество»: ученик творческой специальности пишет только историю Казахстана
-// и грамотность чтения, профильные предметы не отмечает. Кружок справа от заголовка предметов —
-// на уже напечатанных бланках v3/v4 это место пустое, поэтому версия бланка не меняется.
+// v4: «Шығармашылық / Творчество» — отдельный кружок справа от заголовка предметов
+// (ученик пишет только историю Казахстана и грамотность чтения). В v5 это последняя строка комбинаций.
 export const CREATIVE_BUBBLE = { x: 150, y: 47.3, labelX: 150 + BUBBLE_R + 1.2, hintY: 51 };
 // v3 (для чтения уже напечатанных бланков): один кружок на предмет
-export const SUBJECT_BUBBLES_V3 = DEFAULT_SUBJECTS.map((s, i) => ({
+export const SUBJECT_BUBBLES_V3 = LEGACY_SUBJECTS.map((s, i) => ({
   index: i, code: s.code,
   x: i < 6 ? SUBJ.x0 : SUBJ.x1,
   y: SUBJ.top + (i % 6) * SUBJ.pitch,
@@ -183,13 +192,12 @@ export const VERSION_CODE = (() => {
   };
 })();
 
-// Все кружки бланка одним списком — удобно для проверок и распознавания.
+// Все кружки текущего бланка (v5) одним списком — удобно для проверок и распознавания.
 export function allBubbles() {
   const list = [];
   STUDENT_ID.columns.forEach((c, i) => c.bubbles.forEach(b => list.push({ group: `id${i}`, ...b })));
   VARIANT.columns.forEach((c, i) => c.bubbles.forEach(b => list.push({ group: `var${i}`, ...b })));
-  SUBJECT_BUBBLES.forEach(b => list.push({ group: `subject${b.slot}`, ...b }));
-  list.push({ group: 'creative', x: CREATIVE_BUBBLE.x, y: CREATIVE_BUBBLE.y });
+  COMBO_BUBBLES.forEach(b => list.push({ group: `combo${b.index}`, x: b.x, y: b.y }));
   ANSWER_SECTIONS.forEach(s => s.questions.forEach(q =>
     q.options.forEach(o => list.push({ group: `${s.key}:${q.n}`, ...o }))));
   return list;

@@ -1,7 +1,7 @@
 // Лаборатория распознавания (только для разработки, в приложение не входит).
 // Делает «фото» НАСТОЯЩЕГО бланка из out/blank-v<версия>.pdf с закрашенными ответами.
 import * as pdfjs from '../vendor/pdfjs/pdf.min.mjs';
-import { STUDENT_ID, VARIANT, SUBJECT_ROWS, CREATIVE_BUBBLE, ANSWER_SECTIONS, PAGE, SHEET_VERSION, LETTERS, optionsForAnswer, optionCode } from '../src/template.js';
+import { STUDENT_ID, VARIANT, COMBO_BUBBLES, ANSWER_SECTIONS, PAGE, SHEET_VERSION, LETTERS, optionsForAnswer, optionCode } from '../src/template.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).href;
 
@@ -44,12 +44,12 @@ export function randomSheet(seed) {
     answers,
     id: String(1 + ((R() * 9998) | 0)).padStart(4, '0'),
     variant: R() < 0.5 ? '01' : '02',
-    subjects: [(R() * 6) | 0, 6 + ((R() * 6) | 0)],
+    combo: (R() * 13) | 0,
   };
 }
 
 /** Заполненный бланк → «фото» (canvas). pen: 'black' | 'blue'. */
-export async function makePhoto({ answers, id, variant, subjects, creative = false, faint = [] }, { seed = 1, angle = 3, pen = 'black', w = 1200, h = 1600 } = {}) {
+export async function makePhoto({ answers, id, variant, combo, faint = [] }, { seed = 1, angle = 3, pen = 'black', w = 1200, h = 1600 } = {}) {
   const R = rng(seed);
   const k = 6;
   const src = await sheetCanvas(k);
@@ -73,9 +73,8 @@ export async function makePhoto({ answers, id, variant, subjects, creative = fal
     sx.fillStyle = keep;
   }
   [...variant].forEach((d, i) => { const b = VARIANT.columns[i].bubbles[+d]; dot(b.x, b.y); });
-  // subjects = [профиль 1, профиль 2] → кружки «1» и «2»
-  subjects.forEach((s, i) => { const o = SUBJECT_ROWS[s].options[i]; dot(o.x, o.y); });
-  if (creative) dot(CREATIVE_BUBBLE.x, CREATIVE_BUBBLE.y);
+  // combo — номер строки-комбинации (12 — «Творчество»)
+  dot(COMBO_BUBBLES[combo].x, COMBO_BUBBLES[combo].y);
   for (const sec of ANSWER_SECTIONS) for (const q of sec.questions)
     for (const o of optionsForAnswer(q, answers[sec.key]?.[q.n] ?? '')) dot(o.x, o.y);
 
@@ -113,8 +112,9 @@ export function compare(res, sheet) {
   }
   if (res.studentId !== sheet.id) wrong.push(`id ${res.studentIdRaw}≠${sheet.id}`);
   if (res.variant !== sheet.variant) wrong.push(`variant ${res.variantRaw}≠${sheet.variant}`);
-  const wantSubj = sheet.subjects.map(i => SUBJECT_ROWS[i].code).join(',');
+  const c = COMBO_BUBBLES[sheet.combo];
+  const wantSubj = (c.subjects ?? []).join(',');
   if (res.subjects.join(',') !== wantSubj) wrong.push(`subjects ${res.subjects}≠${wantSubj}`);
-  if (res.creative !== !!sheet.creative) wrong.push(`creative ${res.creative}`);
+  if (res.creative !== !!c.creative) wrong.push(`creative ${res.creative}`);
   return { ok: true, wrong, flags: res.flags.length, ms: res.ms };
 }

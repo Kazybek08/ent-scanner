@@ -3,7 +3,7 @@
 // Работает и в браузере, и в Node (для проверки): jsPDF и шрифты передаются снаружи.
 
 import {
-  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECTS_AREA, SUBJECT_ROWS, CREATIVE_BUBBLE,
+  PAGE, BUBBLE_R, MARKERS, STUDENT_ID, VARIANT, SUBJECTS_AREA, COMBO_BUBBLES,
   INSTRUCTION_BOX, ANSWER_HEADERS, ANSWER_SECTIONS, VERSION_CODE, SHEET_VERSION, LOWER_PARTS, LOWER_BAND, ROW_PITCH,
 } from './template.js';
 import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
@@ -22,12 +22,12 @@ export const SHEET_TEXT = {
   sign: 'Қолы / Подпись',
   idKk: 'Оқушы ID', idRu: 'ID ученика',
   varKk: 'Нұсқа', varRu: 'Вариант',
-  subjKk: 'Бейіндік пәндер: «1» — бірінші, «2» — екінші',
-  subjRu: 'Профильные предметы: «1» — первый, «2» — второй',
+  subjKk: 'Бейіндік пәндер — бір жолды бояңыз',
+  subjRu: 'Профильные предметы — закрасьте одну строку',
   instrTitle: 'Нұсқаулық / Инструкция',
   instrKk: 'Дөңгелекті қара немесе көк қаламмен толық бояңыз. Бір сұраққа — бір жауап. Бейіндік пән: 31–35 сәйкестендіру — 1) және 2) жолдарының әрқайсысында бір дөңгелек; 36–40 — бір, екі немесе үш жауап. Түзетуге болмайды: қателессеңіз, жаңа бланк сұраңыз.',
   instrRu: 'Закрашивайте кружок полностью чёрной или синей ручкой. Один ответ на вопрос. Профильный предмет: 31–35 сопоставление — в строке 1) и в строке 2) по одному кружку; 36–40 — один, два или три ответа. Исправлять нельзя: при ошибке попросите новый бланк.',
-  creative: 'Шығармашылық / Творчество',
+  creativeKk: 'Шығармашылық', creativeRu: 'Творчество',
   creativeHint: 'тек тарих + оқу / только история + чтение',
   partMatch: '31–35 · Сәйкестендіру / Сопоставление',
   partMulti: '36–40 · 1–3 жауап / ответа',
@@ -96,28 +96,37 @@ export function buildSheetPdf({ jsPDF, fonts, logo, subjects = DEFAULT_SUBJECTS 
   digitsBlock(STUDENT_ID, SHEET_TEXT.idKk, SHEET_TEXT.idRu);
   digitsBlock(VARIANT, SHEET_TEXT.varKk, SHEET_TEXT.varRu);
 
-  // --- Профильные предметы ---
+  // --- Профильные предметы: строки-комбинации (первый предмет — профиль 1) ---
   font(6.5, 'bold');
   doc.text(SHEET_TEXT.subjKk, SUBJECTS_AREA.x, SUBJECTS_AREA.labelY);
+  const subjKkW = doc.getTextWidth(SHEET_TEXT.subjKk);
   font(6.5);
-  doc.text(SHEET_TEXT.subjRu, SUBJECTS_AREA.x, SUBJECTS_AREA.labelY + 2.6);
-  for (const r of SUBJECT_ROWS) {
-    const s = subjects[r.index];
-    for (const o of r.options) bubble(doc, o.x, o.y, String(o.slot));
-    font(6.8);
-    const label = !s ? '' : s.kk === s.ru ? s.kk : `${s.kk} / ${s.ru}`;
-    // длинное название — шрифт поменьше, чтобы не залезть на соседнюю колонку
-    const room = (r.index < 6 ? SUBJECT_ROWS[6].options[0].x - BUBBLE_R - 1.5 : SUBJECTS_AREA.right) - r.labelX;
-    if (doc.getTextWidth(label) > room) doc.setFontSize(6.8 * room / doc.getTextWidth(label));
-    doc.text(label, r.labelX, r.y, { baseline: 'middle' });
+  doc.text(SHEET_TEXT.subjRu, SUBJECTS_AREA.x + subjKkW + 3, SUBJECTS_AREA.labelY);
+  const byCode = code => subjects.find(s => s.code === code) ?? { kk: code, ru: code };
+  for (const b of COMBO_BUBBLES) {
+    bubble(doc, b.x, b.y, '');
+    let kk, ru;
+    if (b.creative) { kk = `${SHEET_TEXT.creativeKk} / ${SHEET_TEXT.creativeRu}`; ru = SHEET_TEXT.creativeHint; }
+    else {
+      const [a, c] = b.subjects.map(byCode);
+      kk = `${a.kk} – ${c.kk}`; ru = `${a.ru} – ${c.ru}`;
+    }
+    const room = (b.col === 0 ? COMBO_BUBBLES.find(x => x.col === 1).x - BUBBLE_R - 1.5 : SUBJECTS_AREA.right) - b.labelX;
+    const fit = (size, text) => { doc.setFontSize(size); const w = doc.getTextWidth(text); if (w > room) doc.setFontSize(size * room / w); };
+    if (kk === ru) {
+      font(6.8, b.creative ? 'bold' : 'normal');
+      fit(6.8, kk);
+      doc.text(kk, b.labelX, b.y, { baseline: 'middle' });
+    } else {
+      // две строки: сверху по-казахски, снизу по-русски
+      font(5.9, b.creative ? 'bold' : 'normal');
+      fit(5.9, kk);
+      doc.text(kk, b.labelX, b.y - 1.05, { baseline: 'middle' });
+      font(5.5, 'normal', b.creative ? 90 : 55);
+      fit(5.5, ru);
+      doc.text(ru, b.labelX, b.y + 1.15, { baseline: 'middle' });
+    }
   }
-
-  // «Творчество»: вместо профильных предметов
-  bubble(doc, CREATIVE_BUBBLE.x, CREATIVE_BUBBLE.y, '');
-  font(6.5, 'bold');
-  doc.text(SHEET_TEXT.creative, CREATIVE_BUBBLE.labelX, CREATIVE_BUBBLE.y, { baseline: 'middle' });
-  font(5, 'normal', 90);
-  doc.text(SHEET_TEXT.creativeHint, CREATIVE_BUBBLE.x - BUBBLE_R, CREATIVE_BUBBLE.hintY, { baseline: 'middle' });
 
   // --- Инструкция ---
   drawInstruction(doc, font);

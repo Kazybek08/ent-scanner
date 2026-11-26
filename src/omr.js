@@ -4,7 +4,7 @@
 // Работает и в браузере, и в Node (для автотестов).
 
 import {
-  MARKERS, BUBBLE_R, STUDENT_ID, VARIANT, SUBJECT_ROWS, SUBJECT_BUBBLES_V3, CREATIVE_BUBBLE, ANSWER_SECTIONS, VERSION_CODE, READABLE_VERSIONS,
+  MARKERS, BUBBLE_R, STUDENT_ID, VARIANT, SUBJECT_ROWS, SUBJECT_BUBBLES_V3, CREATIVE_BUBBLE, COMBO_BUBBLES, ANSWER_SECTIONS, VERSION_CODE, READABLE_VERSIONS,
 } from './template.js';
 import { DEFAULT_SUBJECTS } from './subjects.js';
 
@@ -296,6 +296,24 @@ function digitsFrom(columns, score, kind, flags, marks) {
 }
 
 /**
+ * Бланк v5: ученик закрашивает одну строку-комбинацию. Порядок профилей закреплён в самой комбинации.
+ * Последняя строка — «Творчество» (без профильных предметов).
+ */
+function readCombo(score, marks) {
+  const st = COMBO_BUBBLES.map(b => ({ b, c: classify(score(b)) }));
+  for (const s of st) if (s.c !== 'empty') marks.push({ x: s.b.x, y: s.b.y, c: s.c });
+  const filled = st.filter(s => s.c === 'filled');
+  const weak = st.some(s => s.c === 'doubtful');
+  const one = filled.length === 1 ? filled[0].b : null;
+  const creative = !!one?.creative;
+  const codes = one && !creative ? [...one.subjects] : [];
+  let flag = null;
+  if (weak) flag = { kind: 'subjects', reason: 'weak', count: filled.length };
+  else if (!one) flag = { kind: 'subjects', reason: 'combo', count: filled.length };
+  return { codes, ordered: true, creative, flag };
+}
+
+/**
  * Предметы на бланке v4: у каждого предмета кружки «1» и «2».
  * Профиль 1 — предмет с закрашенной «1», Профиль 2 — с «2». Любая неясность — подсветка.
  */
@@ -371,15 +389,22 @@ export function recognize(img, { subjects = DEFAULT_SUBJECTS } = {}) {
   const id = digitsFrom(STUDENT_ID.columns, score, 'id', flags, marks);
   const variant = digitsFrom(VARIANT.columns, score, 'variant', flags, marks);
 
-  const subj = best.version >= 4 ? readSubjects(score, subjects, marks) : readSubjectsV3(score, subjects, marks);
-  // «Творчество»: только история и грамотность чтения, профильные предметы не отмечаются
-  const cc = classify(score(CREATIVE_BUBBLE));
-  if (cc !== 'empty') marks.push({ x: CREATIVE_BUBBLE.x, y: CREATIVE_BUBBLE.y, c: cc });
-  const creative = cc === 'filled';
-  if (cc === 'doubtful') flags.push({ kind: 'subjects', reason: 'creativeWeak', count: subj.codes.length });
-  else if (creative && subj.codes.length) flags.push({ kind: 'subjects', reason: 'creativeMix', count: subj.codes.length });
-  else if (creative) { /* только творчество — предметы не нужны */ }
-  else if (subj.flag) flags.push(subj.flag);
+  let subj, creative;
+  if (best.version >= 5) {
+    subj = readCombo(score, marks);
+    creative = subj.creative;
+    if (subj.flag) flags.push(subj.flag);
+  } else {
+    subj = best.version === 4 ? readSubjects(score, subjects, marks) : readSubjectsV3(score, subjects, marks);
+    // v3/v4: «Творчество» — отдельный кружок; только история и грамотность чтения, профильные не отмечаются
+    const cc = classify(score(CREATIVE_BUBBLE));
+    if (cc !== 'empty') marks.push({ x: CREATIVE_BUBBLE.x, y: CREATIVE_BUBBLE.y, c: cc });
+    creative = cc === 'filled';
+    if (cc === 'doubtful') flags.push({ kind: 'subjects', reason: 'creativeWeak', count: subj.codes.length });
+    else if (creative && subj.codes.length) flags.push({ kind: 'subjects', reason: 'creativeMix', count: subj.codes.length });
+    else if (creative) { /* только творчество — предметы не нужны */ }
+    else if (subj.flag) flags.push(subj.flag);
+  }
   const chosen = subj.codes;
 
   const answers = {};

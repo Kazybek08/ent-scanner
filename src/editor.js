@@ -7,7 +7,7 @@ import { effective, evaluate } from './results.js';
 import { cropSheet, photoPixels } from './crop.js';
 import { drawOverlay } from './overlay.js';
 import { ANSWER_SECTIONS, STUDENT_ID, VARIANT } from './template.js';
-import { DEFAULT_SUBJECTS, SECTIONS } from './subjects.js';
+import { DEFAULT_SUBJECTS, SECTIONS, COMBOS } from './subjects.js';
 import { subjectLabel } from './tests-screen.js';
 import { questionType } from './scoring.js';
 import { optionsForAnswer } from './template.js';
@@ -149,6 +149,7 @@ function flagTitle(f) {
       if (f.reason === 'same') return t('flag.subjects.same');
       if (f.reason === 'creativeMix') return t('flag.subjects.creativeMix');
       if (f.reason === 'creativeWeak') return t('flag.subjects.creativeWeak');
+      if (f.reason === 'combo') return t('flag.subjects.combo', { count: f.count });
       if (f.reason === 'slots') return t('flag.subjects.slots', { p1: f.p1, p2: f.p2 });
       return t('flag.subjects', { count: f.count });
     case 'unknownStudent': return t('flag.unknownStudent', { id: f.id });
@@ -264,17 +265,26 @@ function render() {
     };
     const setCreative = () => { S.draft.creative = !eff.creative; if (S.draft.creative) { S.draft.subjects = []; S.subjPick = []; } S.dirty = true; render(); };
     const edited = S.draft.subjects !== undefined || S.draft.creative !== undefined;
+    const v5 = (S.rec.sheetVersion ?? 0) >= 5;
     cards.append(el('div', { class: `fix-card${edited && ok && !ev.flags.some(f => f.kind === 'subjects') ? ' done' : ''}` },
       el('div', { class: 'fix-title', text: t('edit.subjectsTitle') }),
-      el('div', { class: 'fix-sub', text: ok ? (edited ? t('edit.fixed') : subjFlag ? flagTitle(subjFlag) : t('edit.fixed')) : t('edit.pickTwo') }),
-      crop('subj', { x0: 64, y0: 51.5, x1: 193, y1: 79 }, 5),
-      el('div', { class: 'chips' }, DEFAULT_SUBJECTS.map(s => {
-        const i = picked.indexOf(s.code);
-        return el('button', { type: 'button', class: 'chip', 'aria-pressed': String(i >= 0), text: i >= 0 ? `${i + 1} · ${s[getLang()]}` : s[getLang()],
-          onclick: () => { const p = [...picked]; if (i >= 0) p.splice(i, 1); else if (p.length < 2) p.push(s.code); else return; pick(p); } });
-      }), el('button', { type: 'button', class: 'chip', 'aria-pressed': String(eff.creative), text: t('res.creative'), onclick: setCreative })),
+      el('div', { class: 'fix-sub', text: ok ? (edited ? t('edit.fixed') : subjFlag ? flagTitle(subjFlag) : t('edit.fixed')) : t(v5 ? 'edit.pickCombo' : 'edit.pickTwo') }),
+      v5 ? crop('subj', { x0: 64, y0: 48.5, x1: 193, y1: 80 }, 5) : crop('subj', { x0: 64, y0: 51.5, x1: 193, y1: 79 }, 5),
+      v5
+        // бланк v5: одна строка-комбинация, порядок профилей закреплён
+        ? el('div', { class: 'chips' }, COMBOS.map(c => {
+          const on = c.creative ? !!eff.creative : !eff.creative && picked.length === 2 && picked[0] === c.subjects[0] && picked[1] === c.subjects[1];
+          return el('button', { type: 'button', class: 'chip', 'aria-pressed': String(on),
+            text: c.creative ? t('res.creative') : c.subjects.map(subjectLabel).join(' – '),
+            onclick: () => { if (c.creative) { if (!eff.creative) setCreative(); } else { S.draft.creative = false; S.subjPick = [...c.subjects]; S.draft.subjects = [...c.subjects]; S.dirty = true; render(); } } });
+        }))
+        : el('div', { class: 'chips' }, DEFAULT_SUBJECTS.map(s => {
+          const i = picked.indexOf(s.code);
+          return el('button', { type: 'button', class: 'chip', 'aria-pressed': String(i >= 0), text: i >= 0 ? `${i + 1} · ${s[getLang()]}` : s[getLang()],
+            onclick: () => { const p = [...picked]; if (i >= 0) p.splice(i, 1); else if (p.length < 2) p.push(s.code); else return; pick(p); } });
+        }), el('button', { type: 'button', class: 'chip', 'aria-pressed': String(eff.creative), text: t('res.creative'), onclick: setCreative })),
       eff.creative ? el('div', { class: 'fix-sub', text: t('edit.creativeHint') }) : null,
-      ok && !eff.creative ? el('div', { class: 'fix-actions' },
+      ok && !eff.creative && !v5 ? el('div', { class: 'fix-actions' },
         el('div', { class: 'fix-sub', text: t('edit.profileOrder', { p1: subjectLabel(picked[0]), p2: subjectLabel(picked[1]) }) }),
         el('button', { type: 'button', class: 'btn-link', text: t('edit.swapProfiles'), onclick: () => pick([picked[1], picked[0]]) })) : null,
     ));

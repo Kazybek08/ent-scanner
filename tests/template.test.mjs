@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PAGE, BUBBLE_R, MARKERS, ANSWER_SECTIONS, SUBJECT_BUBBLES, SUBJECT_ROWS, STUDENT_ID, VARIANT, allBubbles, SHEET_VERSION, VERSION_CODE, optionsForAnswer,
+  PAGE, BUBBLE_R, MARKERS, ANSWER_SECTIONS, SUBJECT_BUBBLES, SUBJECT_ROWS, COMBO_BUBBLES, STUDENT_ID, VARIANT, allBubbles, SHEET_VERSION, VERSION_CODE, optionsForAnswer,
 } from '../src/template.js';
 
-test('бланк версии 4, код версии внизу совпадает', () => {
-  assert.equal(SHEET_VERSION, 4);
+test('бланк версии 5, код версии внизу совпадает', () => {
+  assert.equal(SHEET_VERSION, 5);
   const bits = VERSION_CODE.cells.slice(1, 7).map(c => (c.filled ? '1' : '0')).join('');
-  assert.equal(parseInt(bits, 2), 4);
+  assert.equal(parseInt(bits, 2), 5);
 });
 
 test('в бланке 120 вопросов по блокам 20/10/10/40/40', () => {
@@ -36,10 +36,17 @@ test('номера вопросов идут подряд с 1', () => {
   for (const s of ANSWER_SECTIONS) s.questions.forEach((q, i) => assert.equal(q.n, i + 1, s.key));
 });
 
-test('ID — 4 колонки, вариант — 2, предметов — 12', () => {
+test('ID — 4 колонки, вариант — 2, комбинаций — 13 (12 пар + «Творчество»), v4 — 12 предметов', () => {
   assert.equal(STUDENT_ID.columns.length, 4);
   assert.equal(VARIANT.columns.length, 2);
-  assert.equal(SUBJECT_BUBBLES.length, 24, 'у каждого предмета кружки «1» и «2»');
+  assert.equal(COMBO_BUBBLES.length, 13);
+  assert.equal(COMBO_BUBBLES.at(-1).creative, true);
+  assert.deepEqual(COMBO_BUBBLES[10].subjects, ['worldHistory', 'law']);
+  assert.equal(SUBJECT_BUBBLES.length, 24, 'v4: у каждого предмета кружки «1» и «2»');
+});
+
+test('строки комбинаций выше блока инструкции', () => {
+  for (const b of COMBO_BUBBLES) assert.ok(b.y + BUBBLE_R < 80 - 0.5, `строка ${b.index}`);
 });
 
 test('кружки не меньше 3,3 мм', () => {

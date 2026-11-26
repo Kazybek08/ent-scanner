@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { recognize } from '../src/omr.js';
 import { synthPhoto, buildMarks, randomAnswers, rng } from './synth.mjs';
-import { SUBJECT_ROWS } from '../src/template.js';
+import { SUBJECT_ROWS, COMBO_BUBBLES } from '../src/template.js';
 
 function expectSame(res, answers, label) {
   assert.ok(res.ok, `${label}: не распознан (${res.error})`);
@@ -21,16 +21,15 @@ test('10 случайных бланков с перспективой, тень
     const answers = randomAnswers(R);
     const id = String(1 + ((R() * 9998) | 0)).padStart(4, '0');
     const variant = R() < 0.5 ? '01' : '02';
-    const pair = [(R() * 6) | 0, 6 + ((R() * 6) | 0)];
-    const subjects = seed % 2 ? pair : [pair[1], pair[0]];      // профиль 1 бывает и справа
-    const want = subjects.map(i => SUBJECT_ROWS[i].code);
-    const img = synthPhoto({ marks: buildMarks({ id, variant, subjects, answers }), seed });
+    const combo = (R() * 12) | 0;
+    const want = COMBO_BUBBLES[combo].subjects;
+    const img = synthPhoto({ marks: buildMarks({ id, variant, combo, answers }), seed });
     const res = recognize(img);
     times.push(res.ms);
     expectSame(res, answers, `бланк ${seed}`);
     assert.equal(res.studentId, id);
     assert.equal(res.variant, variant);
-    assert.deepEqual(res.subjects, want, 'профиль 1 и профиль 2 по кружкам «1» и «2»');
+    assert.deepEqual(res.subjects, want, 'профиль 1 и профиль 2 — из строки-комбинации');
     assert.equal(res.subjectsOrdered, true);
     assert.equal(res.flags.length, 0, JSON.stringify(res.flags));
   }
@@ -88,7 +87,28 @@ test('старый бланк v3 (один кружок на предмет) п�
   assert.equal(res.flags.length, 0, JSON.stringify(res.flags));
 });
 
-test('профили: неясные отметки «1»/«2» подсвечиваются', () => {
+test('v5: «Творчество» — последняя строка, без подсветки', () => {
+  const res = recognize(synthPhoto({ marks: buildMarks({ combo: 12, answers: { history: { 1: 'A' } } }), seed: 40 }));
+  assert.equal(res.sheetVersion, 5);
+  assert.equal(res.creative, true);
+  assert.deepEqual(res.subjects, []);
+  assert.equal(res.flags.length, 0, JSON.stringify(res.flags));
+  const law = recognize(synthPhoto({ marks: buildMarks({ combo: 10 }), seed: 41 }));
+  assert.deepEqual(law.subjects, ['worldHistory', 'law'], 'Всемирная история – ЧОП');
+  assert.equal(law.creative, false);
+});
+
+test('v5: две строки, пусто или слабая отметка — подсветка', () => {
+  for (const [opts, reason, seed] of [[{ combo: [0, 3] }, 'combo', 42], [{ combo: [] }, 'combo', 43], [{ combo: 4, comboStyle: 'light' }, 'weak', 44], [{ combo: [5, 12] }, 'combo', 45]]) {
+    const res = recognize(synthPhoto({ marks: buildMarks(opts), seed }));
+    assert.ok(res.ok);
+    const f = res.flags.find(f => f.kind === 'subjects');
+    assert.ok(f, JSON.stringify(opts));
+    assert.equal(f.reason, reason, JSON.stringify(opts));
+  }
+});
+
+test('старый бланк v4: неясные отметки «1»/«2» подсвечиваются', () => {
   const cases = [
     { m: [[3, 1]], reason: 'slots', note: 'нет «2»' },
     { m: [[3, 1], [4, 1], [9, 2]], reason: 'slots', note: 'две «1»' },
@@ -96,7 +116,7 @@ test('профили: неясные отметки «1»/«2» подсвечи
     { m: [], reason: 'slots', note: 'ничего не отмечено' },
   ];
   cases.forEach(({ m, reason, note }, i) => {
-    const res = recognize(synthPhoto({ marks: buildMarks({ subjectMarks: m }), seed: 20 + i }));
+    const res = recognize(synthPhoto({ marks: buildMarks({ subjectMarks: m, sheet: 4 }), seed: 20 + i, version: 4 }));
     assert.ok(res.ok, note);
     const f = res.flags.find(f => f.kind === 'subjects');
     assert.ok(f, `${note}: должна быть подсветка`);
@@ -104,18 +124,18 @@ test('профили: неясные отметки «1»/«2» подсвечи
   });
 });
 
-test('«Творчество»: без профильных предметов — без подсветки; вместе с предметами — подсветка', () => {
+test('v4: «Творчество»: без профильных предметов — без подсветки; вместе с предметами — подсветка', () => {
   const answers = { history: { 1: 'A' }, reading: { 2: 'B' } };
-  const only = recognize(synthPhoto({ marks: buildMarks({ creative: true, subjectMarks: [], answers }), seed: 30 }));
+  const only = recognize(synthPhoto({ marks: buildMarks({ creative: true, subjectMarks: [], answers, sheet: 4 }), seed: 30, version: 4 }));
   assert.equal(only.creative, true);
   assert.deepEqual(only.subjects, []);
   assert.equal(only.flags.length, 0, JSON.stringify(only.flags));
-  const mix = recognize(synthPhoto({ marks: buildMarks({ creative: true, answers }), seed: 31 }));
+  const mix = recognize(synthPhoto({ marks: buildMarks({ creative: true, answers, sheet: 4 }), seed: 31, version: 4 }));
   assert.equal(mix.creative, true);
   assert.ok(mix.flags.some(f => f.kind === 'subjects' && f.reason === 'creativeMix'));
-  const weak = recognize(synthPhoto({ marks: buildMarks({ creative: 'light', subjectMarks: [], answers }), seed: 32 }));
+  const weak = recognize(synthPhoto({ marks: buildMarks({ creative: 'light', subjectMarks: [], answers, sheet: 4 }), seed: 32, version: 4 }));
   assert.ok(weak.flags.some(f => f.kind === 'subjects' && f.reason === 'creativeWeak'), JSON.stringify(weak.flags));
-  const none = recognize(synthPhoto({ marks: buildMarks({ answers }), seed: 33 }));
+  const none = recognize(synthPhoto({ marks: buildMarks({ answers, sheet: 4 }), seed: 33, version: 4 }));
   assert.equal(none.creative, false, 'обычный бланк — не творчество');
 });
 
@@ -145,7 +165,7 @@ test('сомнительные отметки подсвечиваются, а �
 });
 
 test('ошибки в ID и предметах подсвечиваются', () => {
-  const marks = buildMarks({ id: '0012', subjectMarks: [[0, 1], [1, 2], [2, 2]] });
+  const marks = buildMarks({ id: '0012', combo: [1, 2, 7] });
   const res = recognize(synthPhoto({ marks, seed: 8 }));
   assert.ok(res.flags.some(f => f.kind === 'subjects'), 'три предмета');
   const noId = recognize(synthPhoto({ marks: buildMarks({ id: '0012' }).slice(1), seed: 9 }));
