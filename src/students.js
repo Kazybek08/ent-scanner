@@ -75,7 +75,7 @@ async function editStudent(s) {
       ...(s ? [{ name: 'left', label: t('students.markLeft'), type: 'checkbox', value: s.status === 'left' }] : []),
     ],
     submit: s ? t('form.save') : t('students.addBtn'),
-    danger: s && !hasResults ? { label: t('students.delete'), confirm: t('students.deleteAsk', { name: s.name }), action: async () => { await db.del('students', s.id); renderStudents(); } } : null,
+    danger: s ? { label: t('students.delete'), confirm: t(hasResults ? 'students.deleteAskResults' : 'students.deleteAsk', { name: s.name }), action: async () => { await db.del('students', s.id); renderStudents(); } } : null,
     onSubmit: async v => {
       const name = v.name.replace(/\s+/g, ' ').trim();
       if (!name) return t('students.nameRequired');

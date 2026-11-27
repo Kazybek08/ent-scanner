@@ -63,6 +63,10 @@ test('анализ вопросов: процент верных, частый �
   assert.equal(q.find(x => x.subject === 'history' && x.n === 1).correctPct, 0);
   assert.equal(q.find(x => x.subject === 'history' && x.n === 4).correctPct, 100);
   assert.ok(q.filter(x => x.top10).length <= 10);
+  for (let i = 1; i < q.length; i++) assert.ok(q[i - 1].wrong >= q[i].wrong, 'по убыванию числа ошибок');
+  assert.equal(q[0].wrong, 3, 'первым — вопрос, где ошиблись все');
+  assert.equal(q.find(x => x.subject === 'history' && x.n === 1).correct, 0);
+  assert.equal(q.find(x => x.subject === 'history' && x.n === 4).wrong, 0);
 });
 
 test('динамика по двум пробникам', () => {
@@ -79,7 +83,7 @@ test('динамика по двум пробникам', () => {
   assert.equal(rep.dynamics.rows.find(x => x.id === '0002').change, null);
 });
 
-test('Excel: 4 листа, ошибки красным, пустые жёлтым, открывается обратно', async () => {
+test('Excel: 6 листов, ошибки красным, пустые жёлтым, открывается обратно', async () => {
   const k = key();
   const test1 = { id: 't1', name: 'Ноябрь', date: '2026-11-28', keys: { '01': k } };
   const results = [sheet('a', '0001', k, { wrong: 2, blank: 1 }), sheet('b', '0002', k, {})];
@@ -89,7 +93,16 @@ test('Excel: 4 листа, ошибки красным, пустые жёлты�
     const buf = await wb.xlsx.writeBuffer();
     // читается другой библиотекой — значит, файл корректный
     const back = XLSX.read(buf, { type: 'buffer' });
-    assert.equal(back.SheetNames.length, 4);
+    assert.equal(back.SheetNames.length, 6);
+    // анализ: по убыванию «ошиблись»; отдельные листы «никто не ответил верно» и «все ответили верно»
+    const an = XLSX.utils.sheet_to_json(back.Sheets[back.SheetNames[2]], { header: 1 }).slice(2);
+    for (let i = 1; i < an.length; i++) assert.ok(an[i - 1][4] >= an[i][4], 'ошибки по убыванию');
+    const none = XLSX.utils.sheet_to_json(back.Sheets[back.SheetNames[3]], { header: 1 }).slice(2);
+    const all = XLSX.utils.sheet_to_json(back.Sheets[back.SheetNames[4]], { header: 1 }).slice(2);
+    const noneWant = report.questions.filter(q => q.correct === 0).length;
+    assert.equal(none.length, noneWant || 1, 'пусто — строка «таких вопросов нет»');
+    assert.equal(all.length, report.questions.filter(q => q.wrong === 0).length);
+    assert.ok(all.length > 0);
     const ans = XLSX.utils.sheet_to_json(back.Sheets[back.SheetNames[1]], { header: 1 });
     const row = ans.find(r => r[0] === '0001');
     assert.equal(row[3], k.history[1].a === 'A' ? 'B' : 'A');

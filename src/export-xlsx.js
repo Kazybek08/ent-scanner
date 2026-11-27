@@ -12,6 +12,9 @@ const L = {
     count: 'Оқушылар', passed: 'Шекті балдан өтті', avg: 'Орташа', change: 'Өзгеріс', title: 'Сынақ ҰБТ нәтижелері',
     legend: 'Қызыл — қате жауап, сары — жауап жоқ.', noName: '(тізімде жоқ)',
     creative: 'Шығармашылық (тарих + оқу, 30-дан)',
+    wrongCount: 'Қателескендер', answered: 'Жазғандар', noneRight: 'Ешкім дұрыс жауап бермеді', allRight: 'Барлығы дұрыс жауап берді',
+    noneRightLead: 'Бірде-бір оқушы толық дұрыс жауап бермеген сұрақтар', allRightLead: 'Барлық оқушы дұрыс жауап берген сұрақтар', noSuch: 'Мұндай сұрақ жоқ',
+    analysisLead: 'Ең көп қателескен сұрақтан ең азына қарай',
   },
   ru: {
     summary: 'Итоги', answers: 'Ответы', analysis: 'Анализ вопросов', dynamics: 'Динамика', groups: 'Группы',
@@ -22,6 +25,9 @@ const L = {
     count: 'Учеников', passed: 'Прошли порог', avg: 'Среднее', change: 'Изменение', title: 'Результаты пробного ЕНТ',
     legend: 'Красный — неверный ответ, жёлтый — нет ответа.', noName: '(нет в списке)',
     creative: 'Творчество (история + чтение, из 30)',
+    wrongCount: 'Ошиблись', answered: 'Писали', noneRight: 'Никто не ответил верно', allRight: 'Все ответили верно',
+    noneRightLead: 'Вопросы, на которые ни один ученик не ответил полностью верно', allRightLead: 'Вопросы, на которые верно ответили все ученики', noSuch: 'Таких вопросов нет',
+    analysisLead: 'От вопроса с наибольшим числом ошибок к наименьшему',
   },
 };
 const fmt = (s, p) => s.replace(/\{(\w+)\}/g, (_, k) => p[k]);
@@ -102,16 +108,34 @@ export function buildWorkbook(ExcelJS, report, { test, lang = 'ru' }) {
   }
   s2.columns = [{ width: 7 }, { width: 28 }, { width: 7 }, ...cols.map(() => ({ width: 5 }))];
 
-  // ---- Анализ вопросов ----
-  const s3 = wb.addWorksheet(t.analysis, { views: [{ state: 'frozen', ySplit: 1 }] });
-  header(s3, [t.subject, t.variant, t.n, t.key, t.correctPct, t.avgPoints, t.commonWrong, t.topic, t.top10]);
+  // ---- Анализ вопросов: от самых частых ошибок к самым редким ----
+  const s3 = wb.addWorksheet(t.analysis, { views: [{ state: 'frozen', ySplit: 2 }] });
+  s3.addRow([t.analysisLead]).font = { italic: true, color: { argb: 'FF64748B' } };
+  header(s3, [t.subject, t.variant, t.n, t.key, t.wrongCount, t.answered, t.correctPct, t.avgPoints, t.commonWrong, t.topic, t.top10]);
   for (const q of report.questions) {
-    const row = s3.addRow([subjectName(q.subject, lang), q.variant, q.n, q.key, q.correctPct, q.avgPoints,
+    const row = s3.addRow([subjectName(q.subject, lang), q.variant, q.n, q.key, q.wrong, q.answered, q.correctPct, q.avgPoints,
       q.commonWrong ? `${q.commonWrong} (${q.commonWrongCount})` : '', q.topic, q.top10 ? '★' : '']);
+    row.getCell(5).font = { bold: true };
     if (q.top10) row.eachCell(c => { c.fill = RED; });
-    else if (q.correctPct < 50) row.getCell(5).fill = YELLOW;
+    else if (q.correctPct < 50) row.getCell(7).fill = YELLOW;
   }
-  s3.columns = [26, 8, 6, 8, 10, 12, 20, 30, 12].map(width => ({ width }));
+  s3.columns = [26, 8, 6, 8, 12, 10, 10, 12, 20, 30, 12].map(width => ({ width }));
+
+  // ---- Никто не ответил верно / все ответили верно ----
+  const listSheet = (name, lead, qs, fill) => {
+    const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 2 }] });
+    ws.addRow([lead]).font = { italic: true, color: { argb: 'FF64748B' } };
+    header(ws, [t.subject, t.variant, t.n, t.key, t.answered, t.commonWrong, t.topic]);
+    if (!qs.length) ws.addRow([t.noSuch]).font = { italic: true };
+    for (const q of [...qs].sort((a, b) => a.subject.localeCompare(b.subject) || a.variant.localeCompare(b.variant) || a.n - b.n)) {
+      const row = ws.addRow([subjectName(q.subject, lang), q.variant, q.n, q.key, q.answered,
+        q.commonWrong ? `${q.commonWrong} (${q.commonWrongCount})` : '', q.topic]);
+      row.getCell(1).fill = fill;
+    }
+    ws.columns = [26, 8, 6, 8, 10, 20, 30].map(width => ({ width }));
+  };
+  listSheet(t.noneRight, t.noneRightLead, report.questions.filter(q => q.answered > 0 && q.correct === 0), RED);
+  listSheet(t.allRight, t.allRightLead, report.questions.filter(q => q.answered > 0 && q.correct === q.answered), GREEN);
 
   // ---- Динамика ----
   const s4 = wb.addWorksheet(t.dynamics, { views: [{ state: 'frozen', xSplit: 3, ySplit: 1 }] });

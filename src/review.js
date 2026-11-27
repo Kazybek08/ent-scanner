@@ -71,5 +71,5 @@ export async function renderReview() {
   $('#reviewEmpty').hidden = results.length > 0;
 
   const shown = filter === 'check' ? need : all;
-  urls = renderResultList($('#reviewList'), shown, ctx, openFromQueue);
+  urls = renderResultList($('#reviewList'), shown, ctx, openFromQueue, renderReview);
 }

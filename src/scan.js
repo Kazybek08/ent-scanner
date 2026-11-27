@@ -108,7 +108,7 @@ export async function renderScan() {
   const counts = { ok: 0, check: 0, fail: 0 };
   for (const rec of results) counts[evaluate(rec, ctx).state]++;
   const toCheck = results.filter(r => evaluate(r, ctx).state !== 'ok').map(r => r.id).reverse();
-  urls = renderResultList(list, results, ctx, id => openEditor(id, { queue: toCheck.includes(id) ? toCheck : [id], onSaved: renderScan }));
+  urls = renderResultList(list, results, ctx, id => openEditor(id, { queue: toCheck.includes(id) ? toCheck : [id], onSaved: renderScan }), renderScan);
   $('#scanSummary').hidden = !results.length;
   $('#scanSummary').textContent = t('scan.summary', { total: results.length, ok: counts.ok, check: counts.check, fail: counts.fail });
   $('#scanReviewLink').hidden = !counts.check;

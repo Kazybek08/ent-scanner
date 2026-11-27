@@ -134,10 +134,12 @@ export function analyzeQuestions(rows, test) {
   const list = [...stats.values()].map(s => {
     const common = Object.entries(s.wrongCounts).sort((a, b) => b[1] - a[1])[0];
     return { variant: s.variant, subject: s.subject, part: s.part, n: s.n, key: s.key, topic: s.topic, answered: s.answered,
+      correct: s.correct, wrong: s.answered - s.correct,                // «неверно» — не полный балл (в т. ч. пусто и 1 из 2)
       correctPct: Math.round((s.correct / s.answered) * 100), avgPoints: Math.round((s.points / s.answered) * 100) / 100,
       commonWrong: common ? common[0] : '', commonWrongCount: common ? common[1] : 0 };
   });
-  list.sort((a, b) => a.correctPct - b.correctPct || a.subject.localeCompare(b.subject) || a.n - b.n);
+  // сначала вопросы, где ошиблось больше всего учеников
+  list.sort((a, b) => b.wrong - a.wrong || a.correctPct - b.correctPct || a.subject.localeCompare(b.subject) || a.n - b.n);
   const hardest = new Set(list.filter(q => q.answered >= 3).slice(0, 10));
   for (const q of list) q.top10 = hardest.has(q);
   return list;
